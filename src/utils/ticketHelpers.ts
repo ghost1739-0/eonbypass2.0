@@ -73,7 +73,8 @@ export async function createTicketChannel(
   const channel = await guild.channels.create({
     name: channelName,
     type: ChannelType.GuildText,
-    parent: config.ticketCategoryId,
+    // Only set parent if configured and the category exists
+    parent: config.ticketCategoryId && guild.channels.cache.has(config.ticketCategoryId) ? config.ticketCategoryId : undefined,
     permissionOverwrites,
     topic: `Ticket ${ticketId} | User: ${member.user.tag} | Type: ${type}`,
   });

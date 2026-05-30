@@ -56,16 +56,30 @@ export class SelectMenuHandler {
     await interaction.deferUpdate();
 
     const member = await interaction.guild.members.fetch(interaction.user.id);
-    const { channel, ticketId } = await createTicketChannel(interaction.guild, member, 'purchase', {
-      product,
-    });
+    let channel;
+    let ticketId: string | undefined;
+
+    try {
+      const res = await createTicketChannel(interaction.guild, member, 'purchase', { product });
+      channel = res.channel;
+      ticketId = res.ticketId;
+    } catch (err) {
+      console.error('[SelectMenu] createTicketChannel error:', err);
+      await interaction.followUp({
+        content:
+          '❌ Kanal oluşturulurken bir hata oluştu. Lütfen sunucu ayarlarını (kategori ID ve bot izinleri) kontrol edin ve tekrar deneyin.',
+        ephemeral: true,
+      });
+      return;
+    }
 
     try {
       await interaction.user.send({
         embeds: [
           {
             title: `${interaction.guild.name} Support`,
-            description: '**✅ Your ticket has been created!**\nOur team will respond shortly.\n\n**TR:** Satın alma talebiniz oluşturuldu. Ekibimiz kısa süre içinde size yardımcı olacaktır.',
+            description:
+              '**✅ Your ticket has been created!**\nOur team will respond shortly.\n\n**TR:** Satın alma talebiniz oluşturuldu. Ekibimiz kısa süre içinde size yardımcı olacaktır.',
             color: 0x57f287,
             fields: [
               { name: 'Ticket ID', value: `#${ticketId}` },
@@ -82,7 +96,7 @@ export class SelectMenuHandler {
 
     await interaction.followUp({
       content: `✅ Ticket #${ticketId} created! Check your DMs.`,
-      ephemeral: false,
+      ephemeral: true,
     });
   }
 

@@ -59,6 +59,18 @@ export default class TicketKurCommand extends Command {
           .setStyle(ButtonStyle.Secondary)
       );
 
+      // Prevent duplicate panels: if an identical embed already exists recently, don't post again
+      try {
+        const recent = await textChannel.messages.fetch({ limit: 50 });
+        const exists = recent.some((m) => m.author?.id === _client.user?.id && m.embeds?.[0]?.title === 'Support Center / Destek Merkezi');
+        if (exists) {
+          await interaction.reply({ content: `⚠️ Bu kanalda önceden bir ticket paneli bulunuyor.`, ephemeral: true });
+          return;
+        }
+      } catch {
+        // ignore fetch failures
+      }
+
       await textChannel.send({
         embeds: [buildTicketPanelEmbed()],
         components: [row],

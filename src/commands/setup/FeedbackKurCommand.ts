@@ -49,6 +49,18 @@ export default class FeedbackKurCommand extends Command {
           .setStyle(ButtonStyle.Primary)
       );
 
+      // Prevent duplicate feedback panels in the same channel
+      try {
+        const recent = await textChannel.messages.fetch({ limit: 50 });
+        const exists = recent.some((m) => m.author?.id === _client.user?.id && m.embeds?.[0]?.title === 'Feedback / Geri Bildirim');
+        if (exists) {
+          await interaction.reply({ content: `⚠️ Bu kanalda önceden bir feedback paneli bulunuyor.`, ephemeral: true });
+          return;
+        }
+      } catch {
+        // ignore fetch failures
+      }
+
       await textChannel.send({
         embeds: [buildFeedbackPanelEmbed()],
         components: [row],
