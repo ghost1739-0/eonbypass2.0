@@ -52,8 +52,22 @@ export default class FeedbackKurCommand extends Command {
 
       panelLocks.add(lockKey);
 
-      // Atomic panel lock via DB to avoid duplicates across instances
       try {
+        try {
+          const recent = await textChannel.messages.fetch({ limit: 100 });
+          const duplicates = recent.filter(
+            (message) => message.author.id === _client.user?.id && message.embeds[0]?.title === 'Feedback / Geri Bildirim'
+          );
+
+          for (const message of duplicates.values()) {
+            await message.delete().catch(() => undefined);
+          }
+        } catch {
+          // ignore cleanup failures
+        }
+
+        await PanelModel.deleteMany({ channelId: textChannel.id, type: 'feedback' });
+
         const panel = await PanelModel.create({ channelId: textChannel.id, type: 'feedback' });
 
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

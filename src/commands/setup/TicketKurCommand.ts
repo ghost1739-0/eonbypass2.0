@@ -52,8 +52,22 @@ export default class TicketKurCommand extends Command {
 
       panelLocks.add(lockKey);
 
-      // Try to create an atomic panel lock in DB. If another instance already created it, return info.
       try {
+        try {
+          const recent = await textChannel.messages.fetch({ limit: 100 });
+          const duplicates = recent.filter(
+            (message) => message.author.id === _client.user?.id && message.embeds[0]?.title === 'Support Center / Destek Merkezi'
+          );
+
+          for (const message of duplicates.values()) {
+            await message.delete().catch(() => undefined);
+          }
+        } catch {
+          // ignore cleanup failures
+        }
+
+        await PanelModel.deleteMany({ channelId: textChannel.id, type: 'ticket' });
+
         const panel = await PanelModel.create({ channelId: textChannel.id, type: 'ticket' });
 
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
