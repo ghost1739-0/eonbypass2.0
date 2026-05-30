@@ -136,6 +136,24 @@ export async function createTicketChannel(
     components: [closeRow],
   });
 
+  // Attempt to DM the user a copy/jump link for their ticket
+  try {
+    const jumpUrl = `https://discord.com/channels/${guild.id}/${channel.id}`;
+    const dmEmbed = new EmbedBuilder()
+      .setColor(type === 'purchase' ? 0x5865f2 : 0x57f287)
+      .setTitle(type === 'purchase' ? 'Purchase Ticket Created' : 'Ticket Created')
+      .setDescription('Your ticket has been created. Click the link below to jump to the channel.')
+      .addFields({ name: 'Channel', value: `[Open Ticket](${jumpUrl})` }, { name: 'Ticket ID', value: ticketId })
+      .setTimestamp();
+
+    const dm = await member.user.send({ embeds: [dmEmbed] }).catch(() => null);
+    // eslint-disable-next-line no-console
+    console.log(`[Ticket] DM sent to user=${member.id} ticket=${ticketId} msg=${dm?.id}`);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[Ticket] failed to DM user about ticket', err);
+  }
+
   return { channel, ticketId: ticket.ticketId };
 }
 
