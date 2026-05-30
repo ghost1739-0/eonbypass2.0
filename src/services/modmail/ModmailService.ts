@@ -12,6 +12,7 @@ import {
 } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { config } from '../../config/config';
+import { ModmailCounterModel } from '../../database/models/ModmailCounter';
 import { ModmailTicketDocument, ModmailTicketModel } from '../../database/models/ModmailTicket';
 import { ModmailCategory } from '../../types';
 import {
@@ -210,9 +211,10 @@ export class ModmailService {
   ): Promise<ModmailTicketDocument> {
     const guild = await this.client.guilds.fetch(config.modmailManagementGuildId);
     const parent = this.getParentCategory(guild, category);
+    const ticketNumber = await this.allocateTicketNumber();
 
     const channel = await guild.channels.create({
-      name: this.buildChannelName(user.username),
+      name: `ticket-${ticketNumber}`,
       type: ChannelType.GuildText,
       parent: parent ?? undefined,
       permissionOverwrites: [
@@ -237,6 +239,7 @@ export class ModmailService {
     let ticket: ModmailTicketDocument;
     try {
       ticket = await ModmailTicketModel.create({
+        ticketNumber,
         ticketId: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
         userId: user.id,
         userTag: user.tag,
@@ -299,7 +302,7 @@ export class ModmailService {
     this.byChannel.delete(ticket.channelId);
 
     const closedChannel = await this.fetchTextChannel(ticket.channelId);
-    await this.sendTicketClosedLog(ticket, closedBy).catch(() => undefined);
+    await this.sendTicketClosedLog(ticket, closedBy, closedChannel).catch(() => undefined);
 
     const user = await this.client.users.fetch(ticket.userId).catch(() => null);
     if (user) {
@@ -307,12 +310,25 @@ export class ModmailService {
     }
 
     if (closedChannel) {
+      const ticketNumber = this.resolveTicketNumber(ticket, closedChannel);
       await closedChannel.send(`🔒 Ticket kapatıldı. Kapatan: ${closedBy}`).catch(() => undefined);
-      await closedChannel.delete('Modmail ticket closed').catch(() => undefined);
+
+      if (ticketNumber !== null) {
+        await closedChannel.setName(`closed-ticket-${ticketNumber}`).catch(() => undefined);
+      }
+
+      const logCategoryId = await this.getLogCategoryId(ticket.category);
+      if (logCategoryId) {
+        await closedChannel.setParent(logCategoryId, { lockPermissions: true }).catch(() => undefined);
+      }
     }
   }
 
-  private async sendTicketClosedLog(ticket: ModmailTicketDocument, closedBy: string): Promise<void> {
+  private async sendTicketClosedLog(
+    ticket: ModmailTicketDocument,
+    closedBy: string,
+    closedChannel?: TextChannel | null
+  ): Promise<void> {
     const guild = await this.client.guilds.fetch(config.modmailManagementGuildId).catch(() => null);
     if (!guild) {
       return;
@@ -320,24 +336,28 @@ export class ModmailService {
 
     const logChannelId = this.getLogChannelId(ticket.category);
     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-    if (!logChannel || !('send' in logChannel)) {
-      return;
-    }
-
     const embed = new EmbedBuilder()
       .setColor(0xed4245)
       .setTitle('Ticket Kapatıldı')
       .addFields(
+        { name: 'Ticket No', value: `#${ticket.ticketNumber}`, inline: true },
         { name: 'Kullanıcı', value: ticket.userTag, inline: true },
         { name: 'Kullanıcı ID', value: ticket.userId, inline: true },
         { name: 'Kategori', value: getModmailCategoryLabel(ticket.category), inline: true },
-        { name: 'Ticket ID', value: `#${ticket.ticketId}`, inline: true },
+        { name: 'Kanal', value: closedChannel ? `<#${closedChannel.id}>` : `<#${ticket.channelId}>`, inline: true },
         { name: 'Kapatan', value: closedBy, inline: true },
-        { name: 'Kanal', value: `<#${ticket.channelId}>`, inline: true }
+        { name: 'Ticket ID', value: `#${ticket.ticketId}`, inline: true }
       )
       .setTimestamp();
 
-    await (logChannel as any).send({ embeds: [embed] });
+    if (logChannel && 'send' in logChannel) {
+      await (logChannel as any).send({ embeds: [embed] }).catch(() => undefined);
+      return;
+    }
+
+    if (closedChannel) {
+      await closedChannel.send({ embeds: [embed] }).catch(() => undefined);
+    }
   }
 
   private async closeStaleTicket(ticket: ModmailTicketDocument): Promise<void> {
@@ -444,14 +464,29 @@ export class ModmailService {
     return null;
   }
 
-  private buildChannelName(username: string): string {
-    const normalized = username
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80);
+  private async allocateTicketNumber(): Promise<number> {
+    const counter = await ModmailCounterModel.findOneAndUpdate(
+      { _id: 'modmail-ticket-number' },
+      { $inc: { value: 1 } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
-    return `ticket-${normalized || 'user'}`;
+    return counter?.value ?? 1;
+  }
+
+  private resolveTicketNumber(ticket: ModmailTicketDocument, channel?: TextChannel | null): number | null {
+    if (typeof ticket.ticketNumber === 'number' && Number.isFinite(ticket.ticketNumber)) {
+      return ticket.ticketNumber;
+    }
+
+    const name = channel?.name ?? '';
+    const match = name.match(/^(?:ticket|closed-ticket)-(\d+)$/i);
+    if (!match) {
+      return null;
+    }
+
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   private getOpenTicketTitle(category: ModmailCategory): string {

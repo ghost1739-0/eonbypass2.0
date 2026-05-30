@@ -5,6 +5,7 @@ export interface ModmailTicketDocument extends Omit<IModmailTicket, '_id'>, Docu
 
 const modmailTicketSchema = new Schema<ModmailTicketDocument>(
   {
+    ticketNumber: { type: Number, required: true, unique: true },
     ticketId: { type: String, required: true, unique: true },
     userId: { type: String, required: true },
     userTag: { type: String, required: true, trim: true },

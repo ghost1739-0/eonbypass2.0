@@ -65,6 +65,7 @@ export type ModmailCategory = 'purchase' | 'support' | 'inquiry';
 
 export interface IModmailTicket {
   _id: string;
+  ticketNumber: number;
   ticketId: string;
   userId: string;
   userTag: string;
