@@ -17,7 +17,14 @@ export class InteractionRouter {
 
   public async route(interaction: Interaction): Promise<void> {
     if (interaction.isChatInputCommand()) return;
-    if (interaction.isAutocomplete()) return;
+
+    if (interaction.isAutocomplete()) {
+      const command = this.client.commands.get(interaction.commandName);
+      if (command?.autocomplete) {
+        await command.autocomplete(interaction, this.client);
+      }
+      return;
+    }
 
     if (interaction.isButton()) {
       await this.buttonHandler.handle(interaction);

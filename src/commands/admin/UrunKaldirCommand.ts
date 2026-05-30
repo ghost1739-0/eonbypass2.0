@@ -1,5 +1,6 @@
 import {
   ActionRowBuilder,
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
@@ -19,9 +20,50 @@ export default class UrunKaldirCommand extends Command {
     data: new SlashCommandBuilder()
       .setName('ürünkaldır')
       .setDescription('Veritabanından ürün siler (Yönetici)')
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .addStringOption((option) =>
+        option
+          .setName('ürün')
+          .setDescription('Silinecek ürünü seçin')
+          .setRequired(true)
+          .setAutocomplete(true)
+      ),
+    autocomplete: async (interaction: AutocompleteInteraction) => {
+      const focused = interaction.options.getFocused().toString().toLowerCase();
+      const products = await ProductModel.find().sort({ createdAt: -1 }).limit(25);
+
+      const choices = products
+        .filter((product) => getProductTitle(product).toLowerCase().includes(focused))
+        .slice(0, 25)
+        .map((product) => ({
+          name: `${getProductTitle(product)} - ${getProductPrice(product)}`,
+          value: product._id.toString(),
+        }));
+
+      await interaction.respond(choices);
+    },
     execute: async (interaction: ChatInputCommandInteraction, _client: BotClient) => {
       const products = await ProductModel.find().sort({ createdAt: -1 }).limit(25);
+
+      const selectedProductId = interaction.options.getString('ürün');
+
+      if (selectedProductId) {
+        const product = await ProductModel.findByIdAndDelete(selectedProductId);
+
+        if (!product) {
+          await interaction.reply({
+            content: '❌ Ürün bulunamadı veya zaten silinmiş.',
+            ephemeral: true,
+          });
+          return;
+        }
+
+        await interaction.reply({
+          content: `✅ **${getProductTitle(product)}** ürünü veritabanından kaldırıldı.`,
+          ephemeral: true,
+        });
+        return;
+      }
 
       if (products.length === 0) {
         await interaction.reply({
