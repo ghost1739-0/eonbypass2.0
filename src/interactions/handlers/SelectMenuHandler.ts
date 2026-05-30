@@ -18,6 +18,11 @@ export class SelectMenuHandler {
 
     if (customId === CustomIds.PRODUCT_REMOVE) {
       await this.handleProductRemove(interaction);
+      return;
+    }
+
+    if (customId === CustomIds.MODMAIL_START) {
+      await this.client.modmail.openFromPanel(interaction);
     }
   }
 

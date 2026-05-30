@@ -10,6 +10,8 @@ export const CustomIds = {
   FEEDBACK_OPEN: 'feedback:open',
   MODAL_LICENSE: 'modal:license',
   MODAL_FEEDBACK: 'modal:feedback',
+  MODMAIL_START: 'modmail:start',
+  MODMAIL_CLOSE: 'modmail:close',
 } as const;
 
 export type TicketType = 'purchase' | 'support' | 'inquiry';

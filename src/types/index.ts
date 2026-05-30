@@ -61,6 +61,22 @@ export interface IFeedback {
   createdAt: Date;
 }
 
+export type ModmailCategory = 'purchase' | 'support' | 'inquiry';
+
+export interface IModmailTicket {
+  _id: string;
+  ticketId: string;
+  userId: string;
+  userTag: string;
+  userAvatarUrl: string;
+  guildId: string;
+  channelId: string;
+  category: ModmailCategory;
+  status: 'open' | 'closed';
+  createdAt: Date;
+  closedAt?: Date | null;
+}
+
 declare module 'discord.js' {
   interface Client {
     commands: Collection<string, CommandOptions>;

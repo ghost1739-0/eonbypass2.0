@@ -50,6 +50,11 @@ export class ButtonHandler {
 
     if (customId === CustomIds.PRODUCT_DELETE_ALL_CANCEL) {
       await this.handleDeleteAllProductsCancel(interaction);
+      return;
+    }
+
+    if (customId.startsWith(`${CustomIds.MODMAIL_CLOSE}:`)) {
+      await this.client.modmail.closeTicket(interaction);
     }
   }
 

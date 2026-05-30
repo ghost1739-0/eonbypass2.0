@@ -18,4 +18,9 @@ export const config = {
   ticketCategoryId: requireEnv('TICKET_CATEGORY_ID'),
   staffRoleId: process.env.STAFF_ROLE_ID,
   feedbackChannelId: process.env.FEEDBACK_CHANNEL_ID ?? '1510004727587410001',
+  modmailManagementGuildId: requireEnv('MODMAIL_GUILD_ID'),
+  modmailStaffRoleId: requireEnv('MODMAIL_STAFF_ROLE_ID'),
+  modmailPurchaseCategoryId: requireEnv('MODMAIL_PURCHASE_CATEGORY_ID'),
+  modmailSupportCategoryId: requireEnv('MODMAIL_SUPPORT_CATEGORY_ID'),
+  modmailInquiryCategoryId: requireEnv('MODMAIL_INQUIRY_CATEGORY_ID'),
 } as const;

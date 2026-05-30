@@ -11,6 +11,9 @@ export default class ReadyEvent extends Event {
       const bot = client as BotClient;
       console.log(`[Bot] Logged in as ${bot.user?.tag}`);
       bot.user?.setActivity('EonBypass 2.0', { type: ActivityType.Watching });
+      await bot.modmail.bootstrap().catch((error) => {
+        console.error('[Modmail] bootstrap failed:', error);
+      });
     },
   };
 }
