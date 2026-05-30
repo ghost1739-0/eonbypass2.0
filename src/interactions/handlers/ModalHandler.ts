@@ -82,20 +82,9 @@ export class ModalHandler {
       if (feedbackChannelId && interaction.guild) {
         const target = interaction.guild.channels.cache.get(feedbackChannelId);
         if (target && target.isTextBased()) {
-          await target.send({
-            embeds: [
-              {
-                title: 'Feedback Received',
-                color: 0xfee75c,
-                fields: [
-                  { name: 'User', value: `${interaction.user.tag} (${interaction.user.id})` },
-                  { name: 'License Key', value: licenseKey },
-                  { name: 'Feedback', value: feedback },
-                ],
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          });
+          await target.send(
+            `<@${interaction.user.id}> kullanıcısı "${feedback}" şeklinde değerlendirme yaptı. Lisans: ${licenseKey}`
+          );
         }
       }
     } catch {
