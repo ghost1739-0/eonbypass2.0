@@ -1,6 +1,5 @@
 import {
   ActionRowBuilder,
-  AutocompleteInteraction,
   ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
@@ -20,93 +19,60 @@ export default class UrunKaldirCommand extends Command {
     data: new SlashCommandBuilder()
       .setName('ürünkaldır')
       .setDescription('Veritabanından ürün siler (Yönetici)')
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .addStringOption((option) =>
-        option
-          .setName('ürün')
-          .setDescription('Silinecek ürünü seçin')
-          .setRequired(true)
-          .setAutocomplete(true)
-      ),
-    autocomplete: async (interaction: AutocompleteInteraction) => {
-      const focused = interaction.options.getFocused().toString().toLowerCase();
-      const products = await ProductModel.find().sort({ createdAt: -1 }).limit(25);
-
-      const choices = products
-        .filter((product) => getProductTitle(product).toLowerCase().includes(focused))
-        .slice(0, 25)
-        .map((product) => ({
-          name: `${getProductTitle(product)} - ${getProductPrice(product)}`,
-          value: product._id.toString(),
-        }));
-
-      await interaction.respond(choices);
-    },
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     execute: async (interaction: ChatInputCommandInteraction, _client: BotClient) => {
-      const products = await ProductModel.find().sort({ createdAt: -1 }).limit(25);
+      try {
+        const products = await ProductModel.find().sort({ createdAt: -1 }).limit(25);
 
-      const selectedProductId = interaction.options.getString('ürün');
-
-      if (selectedProductId) {
-        const product = await ProductModel.findByIdAndDelete(selectedProductId);
-
-        if (!product) {
+        if (products.length === 0) {
           await interaction.reply({
-            content: '❌ Ürün bulunamadı veya zaten silinmiş.',
+            content: '❌ Veritabanında silinecek ürün bulunamadı. / No products found in database.',
             ephemeral: true,
           });
           return;
         }
 
+        const embed = new EmbedBuilder()
+          .setColor(0xed4245)
+          .setTitle('Ürün Kaldır / Remove Product')
+          .setDescription(
+            '**TR:** Silmek istediğiniz ürünü aşağıdaki menüden seçin.\n' +
+              '**EN:** Select the product you want to remove from the menu below.'
+          )
+          .addFields(
+            products.map((p, i) => ({
+              name: `${i + 1}. ${getProductTitle(p)}`,
+              value: `Fiyat: ${getProductPrice(p)} | ID: \`${p._id}\``,
+              inline: false,
+            }))
+          )
+          .setTimestamp();
+
+        const selectMenu = new StringSelectMenuBuilder()
+          .setCustomId(CustomIds.PRODUCT_REMOVE)
+          .setPlaceholder('Ürün seçin / Select a product')
+          .addOptions(
+            products.map((p) => ({
+              label: getProductTitle(p).slice(0, 100),
+              description: `Fiyat: ${getProductPrice(p)}`.slice(0, 100),
+              value: p._id.toString(),
+            }))
+          );
+
+        const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
         await interaction.reply({
-          content: `✅ **${getProductTitle(product)}** ürünü veritabanından kaldırıldı.`,
+          embeds: [embed],
+          components: [row],
           ephemeral: true,
         });
-        return;
-      }
-
-      if (products.length === 0) {
+      } catch (error) {
+        console.error('[UrunKaldir] execute error:', error);
         await interaction.reply({
-          content: '❌ Veritabanında silinecek ürün bulunamadı. / No products found in database.',
+          content: '❌ Ürün kaldırma menüsü oluşturulamadı. Lütfen bot loglarını kontrol edin.',
           ephemeral: true,
-        });
-        return;
+        }).catch(() => undefined);
       }
-
-      const embed = new EmbedBuilder()
-        .setColor(0xed4245)
-        .setTitle('Ürün Kaldır / Remove Product')
-        .setDescription(
-          '**TR:** Silmek istediğiniz ürünü aşağıdaki menüden seçin.\n' +
-            '**EN:** Select the product you want to remove from the menu below.'
-        )
-        .addFields(
-          products.map((p, i) => ({
-            name: `${i + 1}. ${getProductTitle(p)}`,
-            value: `Fiyat: ${getProductPrice(p)} | ID: \`${p._id}\``,
-            inline: false,
-          }))
-        )
-        .setTimestamp();
-
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(CustomIds.PRODUCT_REMOVE)
-        .setPlaceholder('Ürün seçin / Select a product')
-        .addOptions(
-          products.map((p) => ({
-            label: getProductTitle(p).slice(0, 100),
-            description: `Fiyat: ${getProductPrice(p)}`.slice(0, 100),
-            value: p._id.toString(),
-          }))
-        );
-
-      const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
-
-      await interaction.reply({
-        embeds: [embed],
-        components: [row],
-        ephemeral: true,
-      });
     },
   };
 }
