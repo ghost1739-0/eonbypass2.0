@@ -38,7 +38,7 @@ export default class UrunEkleCommand extends Command {
           .setMaxLength(50)
       ),
     execute: async (interaction: ChatInputCommandInteraction, _client: BotClient) => {
-      const title = interaction.options.getString('başlık', true);
+      const title = interaction.options.getString('başlık', true).trim();
       const description = interaction.options.getString('açıklama', true);
       const price = interaction.options.getString('fiyat', true);
 
@@ -71,6 +71,18 @@ export default class UrunEkleCommand extends Command {
           ephemeral: true,
         });
         return;
+      }
+
+      const duplicates = await ProductModel.find({ title }).sort({ createdAt: 1 });
+      if (duplicates.length > 1) {
+        const keepId = duplicates[duplicates.length - 1]._id.toString();
+        const removeIds = duplicates
+          .filter((productDocument) => productDocument._id.toString() !== keepId)
+          .map((productDocument) => productDocument._id);
+
+        if (removeIds.length > 0) {
+          await ProductModel.deleteMany({ _id: { $in: removeIds } });
+        }
       }
 
       const embed = new EmbedBuilder()
