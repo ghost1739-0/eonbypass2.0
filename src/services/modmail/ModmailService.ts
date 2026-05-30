@@ -67,18 +67,15 @@ export class ModmailService {
     try {
       const guildId = config.modmailManagementGuildId;
       const jumpUrl = `https://discord.com/channels/${guildId}/${ticket.channelId}`;
-      const categoryLabel = this.getOpenTicketTitle(category);
 
       await user.send({
+        content: 'Talebiniz alındı, buraya yazabilirsiniz.',
         embeds: [
           {
-            title: categoryLabel,
+            title: this.getOpenTicketTitle(category),
             color: 0x5865f2,
-            description: 'Your ticket has been created. Click the link below to jump to the channel.',
-            fields: [
-              { name: 'Channel', value: `[Open Ticket](${jumpUrl})` },
-              { name: 'Ticket ID', value: `#${ticket.ticketId}` },
-            ],
+            description: `Yetkili kanalınız açıldı: [Ticket kanalına git](${jumpUrl})`,
+            fields: [{ name: 'Ticket ID', value: `#${ticket.ticketId}` }],
             timestamp: new Date().toISOString(),
           },
         ],
@@ -215,7 +212,7 @@ export class ModmailService {
     const parent = this.getParentCategory(guild, category);
 
     const channel = await guild.channels.create({
-      name: `ticket-${user.id}`,
+      name: this.buildChannelName(user.username),
       type: ChannelType.GuildText,
       parent: parent ?? undefined,
       permissionOverwrites: [
@@ -304,17 +301,14 @@ export class ModmailService {
     const closedChannel = await this.fetchTextChannel(ticket.channelId);
     await this.sendTicketClosedLog(ticket, closedBy).catch(() => undefined);
 
-    if (closedChannel) {
-      await this.moveClosedChannelToLogCategory(closedChannel, ticket.category).catch(() => undefined);
-    }
-
     const user = await this.client.users.fetch(ticket.userId).catch(() => null);
     if (user) {
-      await this.purgeBotDmMessages(user).catch(() => undefined);
+      await user.send('Biletiniz sonlandırıldı').catch(() => undefined);
     }
 
     if (closedChannel) {
       await closedChannel.send(`🔒 Ticket kapatıldı. Kapatan: ${closedBy}`).catch(() => undefined);
+      await closedChannel.delete('Modmail ticket closed').catch(() => undefined);
     }
   }
 
@@ -344,42 +338,6 @@ export class ModmailService {
       .setTimestamp();
 
     await (logChannel as any).send({ embeds: [embed] });
-  }
-
-  private async moveClosedChannelToLogCategory(channel: TextChannel, category: ModmailCategory): Promise<void> {
-    const logCategoryId = await this.getLogCategoryId(category);
-    if (!logCategoryId) {
-      return;
-    }
-
-    await channel.setParent(logCategoryId, { lockPermissions: true }).catch(() => undefined);
-    await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { ViewChannel: false }).catch(() => undefined);
-  }
-
-  private async purgeBotDmMessages(user: User): Promise<void> {
-    const dmChannel = await user.createDM().catch(() => null);
-    if (!dmChannel) {
-      return;
-    }
-
-    let before: string | undefined;
-    for (let page = 0; page < 10; page += 1) {
-      const messages = await dmChannel.messages.fetch({ limit: 100, before }).catch(() => null);
-      if (!messages || messages.size === 0) {
-        break;
-      }
-
-      before = messages.last()?.id;
-      const deletions = messages.filter((message) => message.author.id === this.client.user?.id);
-
-      for (const message of deletions.values()) {
-        await message.delete().catch(() => undefined);
-      }
-
-      if (messages.size < 100) {
-        break;
-      }
-    }
   }
 
   private async closeStaleTicket(ticket: ModmailTicketDocument): Promise<void> {
@@ -484,6 +442,16 @@ export class ModmailService {
     }
 
     return null;
+  }
+
+  private buildChannelName(username: string): string {
+    const normalized = username
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80);
+
+    return `ticket-${normalized || 'user'}`;
   }
 
   private getOpenTicketTitle(category: ModmailCategory): string {
