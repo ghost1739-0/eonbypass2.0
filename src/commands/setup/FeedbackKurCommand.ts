@@ -12,6 +12,7 @@ import { Command } from '../../structures/Command';
 import { CommandOptions } from '../../types';
 import { CustomIds } from '../../utils/constants';
 import { buildFeedbackPanelEmbed } from '../../utils/ticketHelpers';
+import { PanelModel } from '../../database/models/Panel';
 
 const panelLocks = new Set<string>();
 
@@ -51,20 +52,10 @@ export default class FeedbackKurCommand extends Command {
 
       panelLocks.add(lockKey);
 
+      // Atomic panel lock via DB to avoid duplicates across instances
       try {
-        const recent = await textChannel.messages.fetch({ limit: 50 });
-        const botMessages = recent.filter(
-          (message) => message.author.id === _client.user?.id && message.embeds[0]?.title === 'Feedback / Geri Bildirim'
-        );
+        const panel = await PanelModel.create({ channelId: textChannel.id, type: 'feedback' });
 
-        for (const message of botMessages.values()) {
-          await message.delete().catch(() => undefined);
-        }
-      } catch {
-        // ignore fetch failures and continue sending one fresh panel
-      }
-
-      try {
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
             .setCustomId(CustomIds.FEEDBACK_OPEN)
@@ -73,15 +64,23 @@ export default class FeedbackKurCommand extends Command {
             .setStyle(ButtonStyle.Primary)
         );
 
-        await textChannel.send({
-          embeds: [buildFeedbackPanelEmbed()],
-          components: [row],
-        });
+        const sent = await textChannel.send({ embeds: [buildFeedbackPanelEmbed()], components: [row] });
+        panel.messageId = sent.id;
+        await panel.save();
 
-        await interaction.reply({
-          content: `✅ Geri bildirim paneli ${textChannel} kanalına gönderildi.`,
-          ephemeral: true,
-        });
+        await interaction.reply({ content: `✅ Geri bildirim paneli ${textChannel} kanalına gönderildi.`, ephemeral: true });
+      } catch (err: any) {
+        if (err?.code === 11000) {
+          const existing = await PanelModel.findOne({ channelId: textChannel.id, type: 'feedback' });
+          if (existing?.messageId) {
+            await interaction.reply({ content: `⚠️ Bu kanalda önceden bir feedback paneli bulunuyor.`, ephemeral: true });
+          } else {
+            await interaction.reply({ content: `⚠️ Bu kanalda önceden bir feedback paneli hazırlanıyor. Lütfen tekrar deneyin.`, ephemeral: true });
+          }
+        } else {
+          console.error('[FeedbackKur] panel create error:', err);
+          await interaction.reply({ content: '❌ Feedback paneli oluşturulamadı.', ephemeral: true });
+        }
       } finally {
         panelLocks.delete(lockKey);
       }

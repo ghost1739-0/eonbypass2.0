@@ -12,6 +12,7 @@ import { Command } from '../../structures/Command';
 import { CommandOptions } from '../../types';
 import { CustomIds } from '../../utils/constants';
 import { buildTicketPanelEmbed } from '../../utils/ticketHelpers';
+import { PanelModel } from '../../database/models/Panel';
 
 const panelLocks = new Set<string>();
 
@@ -51,20 +52,10 @@ export default class TicketKurCommand extends Command {
 
       panelLocks.add(lockKey);
 
+      // Try to create an atomic panel lock in DB. If another instance already created it, return info.
       try {
-        const recent = await textChannel.messages.fetch({ limit: 50 });
-        const botMessages = recent.filter(
-          (message) => message.author.id === _client.user?.id && message.embeds[0]?.title === 'Support Center / Destek Merkezi'
-        );
+        const panel = await PanelModel.create({ channelId: textChannel.id, type: 'ticket' });
 
-        for (const message of botMessages.values()) {
-          await message.delete().catch(() => undefined);
-        }
-      } catch {
-        // ignore fetch failures and continue sending one fresh panel
-      }
-
-      try {
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
             .setCustomId(CustomIds.TICKET_PURCHASE)
@@ -83,15 +74,24 @@ export default class TicketKurCommand extends Command {
             .setStyle(ButtonStyle.Secondary)
         );
 
-        await textChannel.send({
-          embeds: [buildTicketPanelEmbed()],
-          components: [row],
-        });
+        const sent = await textChannel.send({ embeds: [buildTicketPanelEmbed()], components: [row] });
+        panel.messageId = sent.id;
+        await panel.save();
 
-        await interaction.reply({
-          content: `✅ Ticket paneli ${textChannel} kanalına gönderildi.`,
-          ephemeral: true,
-        });
+        await interaction.reply({ content: `✅ Ticket paneli ${textChannel} kanalına gönderildi.`, ephemeral: true });
+      } catch (err: any) {
+        // Duplicate key error means another instance created the panel
+        if (err?.code === 11000) {
+          const existing = await PanelModel.findOne({ channelId: textChannel.id, type: 'ticket' });
+          if (existing?.messageId) {
+            await interaction.reply({ content: `⚠️ Bu kanalda önceden bir ticket paneli bulunuyor: <#${textChannel.id}>`, ephemeral: true });
+          } else {
+            await interaction.reply({ content: `⚠️ Bu kanalda önceden bir ticket paneli hazırlanıyor. Lütfen tekrar deneyin.`, ephemeral: true });
+          }
+        } else {
+          console.error('[TicketKur] panel create error:', err);
+          await interaction.reply({ content: '❌ Ticket paneli oluşturulamadı.', ephemeral: true });
+        }
       } finally {
         panelLocks.delete(lockKey);
       }
