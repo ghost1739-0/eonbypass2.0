@@ -84,8 +84,12 @@ export class ModalHandler {
       if (feedbackChannelId) {
         const channel = await this.client.channels.fetch(feedbackChannelId).catch(() => null);
         if (channel && 'send' in channel && typeof (channel as any).send === 'function') {
-          await (channel as any).send(
+          const sent = await (channel as any).send(
             `<@${interaction.user.id}> kullanıcısı "${feedback}" şeklinde değerlendirme yaptı. Lisans: ${licenseKey}`
+          );
+          // eslint-disable-next-line no-console
+          console.log(
+            `[Feedback] delivered to channel=${feedbackChannelId} user=${interaction.user.id} message=${sent?.id}`
           );
         }
       }
