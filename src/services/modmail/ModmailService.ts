@@ -304,7 +304,7 @@ export class ModmailService {
 
     const user = await this.client.users.fetch(ticket.userId).catch(() => null);
     if (user) {
-      await user.send('Ticketınız yetkililer tarafından sonlandırılmıştır.').catch(() => undefined);
+      await this.purgeBotDmMessages(user).catch(() => undefined);
     }
 
     const channel = await this.fetchTextChannel(ticket.channelId);
@@ -313,6 +313,32 @@ export class ModmailService {
       setTimeout(() => {
         void channel.delete('Modmail ticket closed').catch(() => undefined);
       }, 3000);
+    }
+  }
+
+  private async purgeBotDmMessages(user: User): Promise<void> {
+    const dmChannel = await user.createDM().catch(() => null);
+    if (!dmChannel) {
+      return;
+    }
+
+    let before: string | undefined;
+    for (let page = 0; page < 10; page += 1) {
+      const messages = await dmChannel.messages.fetch({ limit: 100, before }).catch(() => null);
+      if (!messages || messages.size === 0) {
+        break;
+      }
+
+      before = messages.last()?.id;
+      const deletions = messages.filter((message) => message.author.id === this.client.user?.id);
+
+      for (const message of deletions.values()) {
+        await message.delete().catch(() => undefined);
+      }
+
+      if (messages.size < 100) {
+        break;
+      }
     }
   }
 
