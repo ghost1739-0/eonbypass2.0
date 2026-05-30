@@ -1,4 +1,5 @@
 import { ModalSubmitInteraction } from 'discord.js';
+import type { TextBasedChannel } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { FeedbackModel } from '../../database/models/Feedback';
 import { TicketModel } from '../../database/models/Ticket';
@@ -76,19 +77,22 @@ export class ModalHandler {
       ephemeral: true,
     });
 
-    // Send feedback notification to configured channel if present
+    // Send feedback notification to configured channel if present.
+    // Use the client to fetch the channel by ID (may be in another guild or not cached).
     try {
       const feedbackChannelId = config.feedbackChannelId;
-      if (feedbackChannelId && interaction.guild) {
-        const target = interaction.guild.channels.cache.get(feedbackChannelId);
-        if (target && target.isTextBased()) {
-          await target.send(
+      if (feedbackChannelId) {
+        const channel = await this.client.channels.fetch(feedbackChannelId).catch(() => null);
+        if (channel && 'send' in channel && typeof (channel as any).send === 'function') {
+          await (channel as any).send(
             `<@${interaction.user.id}> kullanıcısı "${feedback}" şeklinde değerlendirme yaptı. Lisans: ${licenseKey}`
           );
         }
       }
-    } catch {
-      /* ignore failures */
+    } catch (err) {
+      // Log failure so we can debug why messages don't appear
+      // eslint-disable-next-line no-console
+      console.error('[Feedback] failed to deliver notification', err);
     }
   }
 }
