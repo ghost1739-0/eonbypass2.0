@@ -158,9 +158,6 @@ export class ModmailService {
 
     const ticket = await this.getOpenTicketByUser(message.author.id);
     if (!ticket) {
-      await (message.channel as any)
-        .send('Aktif bir ticket bulunamadı. Lütfen panelden ticket başlatın.')
-        .catch(() => undefined);
       return;
     }
 
@@ -221,7 +218,7 @@ export class ModmailService {
   ): Promise<ModmailTicketDocument> {
     const guild = await this.client.guilds.fetch(config.modmailManagementGuildId);
     const parent = this.getParentCategory(guild, category);
-    const ticketNumber = await this.allocateTicketNumber();
+    const ticketNumber = await this.allocateTicketNumber(category);
 
     const channel = await guild.channels.create({
       name: `ticket-${ticketNumber}`,
@@ -475,9 +472,9 @@ export class ModmailService {
     return null;
   }
 
-  private async allocateTicketNumber(): Promise<number> {
+  private async allocateTicketNumber(category: ModmailCategory): Promise<number> {
     const counter = await ModmailCounterModel.findOneAndUpdate(
-      { _id: 'modmail-ticket-number' },
+      { _id: `modmail-ticket-number:${category}` },
       { $inc: { value: 1 } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
