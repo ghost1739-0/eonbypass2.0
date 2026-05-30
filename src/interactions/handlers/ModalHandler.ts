@@ -3,7 +3,7 @@ import { BotClient } from '../../client/BotClient';
 import { FeedbackModel } from '../../database/models/Feedback';
 import { TicketModel } from '../../database/models/Ticket';
 import { CustomIds } from '../../utils/constants';
-import { createTicketChannel } from '../../utils/ticketHelpers';
+import { createTicketChannel, resolveOpenTicket } from '../../utils/ticketHelpers';
 import { config } from '../../config/config';
 
 export class ModalHandler {
@@ -31,12 +31,7 @@ export class ModalHandler {
     const ticketType = interaction.customId.split(':').pop() as 'support' | 'inquiry';
     const licenseKey = interaction.fields.getTextInputValue('license_key');
 
-    const openTicket = await TicketModel.findOne({
-      guildId: interaction.guild.id,
-      userId: interaction.user.id,
-      type: ticketType,
-      status: 'open',
-    });
+    const openTicket = await resolveOpenTicket(interaction.guild, interaction.user.id, ticketType);
 
     if (openTicket) {
       await interaction.reply({

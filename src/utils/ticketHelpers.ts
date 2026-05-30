@@ -11,12 +11,42 @@ import {
 } from 'discord.js';
 import { config } from '../config/config';
 import { ProductDocument } from '../database/models/Product';
-import { TicketModel } from '../database/models/Ticket';
+import { TicketDocument, TicketModel } from '../database/models/Ticket';
 import { CustomIds, TicketType } from './constants';
 import { getProductDescription, getProductPrice, getProductTitle } from './productHelpers';
 
 export function generateTicketId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.slice(-8);
+}
+
+export async function resolveOpenTicket(
+  guild: Guild,
+  userId: string,
+  type: TicketType
+): Promise<TicketDocument | null> {
+  const ticket = await TicketModel.findOne({
+    guildId: guild.id,
+    userId,
+    type,
+    status: 'open',
+  });
+
+  if (!ticket) {
+    return null;
+  }
+
+  try {
+    const channel = await guild.channels.fetch(ticket.channelId);
+    if (channel) {
+      return ticket;
+    }
+  } catch {
+    // If the channel was deleted or cannot be fetched, close the stale record below.
+  }
+
+  ticket.status = 'closed';
+  await ticket.save();
+  return null;
 }
 
 function getChannelPrefix(type: TicketType): string {

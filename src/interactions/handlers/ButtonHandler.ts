@@ -15,7 +15,7 @@ import { ProductModel } from '../../database/models/Product';
 import { TicketModel } from '../../database/models/Ticket';
 import { CustomIds } from '../../utils/constants';
 import { getProductDescription, getProductPrice, getProductTitle } from '../../utils/productHelpers';
-import { createTicketChannel } from '../../utils/ticketHelpers';
+import { createTicketChannel, resolveOpenTicket } from '../../utils/ticketHelpers';
 
 export class ButtonHandler {
   constructor(private readonly client: BotClient) {}
@@ -59,12 +59,7 @@ export class ButtonHandler {
       return;
     }
 
-    const openTicket = await TicketModel.findOne({
-      guildId: interaction.guild.id,
-      userId: interaction.user.id,
-      type: 'purchase',
-      status: 'open',
-    });
+    const openTicket = await resolveOpenTicket(interaction.guild, interaction.user.id, 'purchase');
 
     if (openTicket) {
       await interaction.reply({

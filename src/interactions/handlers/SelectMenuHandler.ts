@@ -3,7 +3,7 @@ import { BotClient } from '../../client/BotClient';
 import { ProductModel } from '../../database/models/Product';
 import { TicketModel } from '../../database/models/Ticket';
 import { CustomIds } from '../../utils/constants';
-import { createTicketChannel } from '../../utils/ticketHelpers';
+import { createTicketChannel, resolveOpenTicket } from '../../utils/ticketHelpers';
 
 export class SelectMenuHandler {
   constructor(private readonly client: BotClient) {}
@@ -39,12 +39,7 @@ export class SelectMenuHandler {
         return;
       }
 
-      const openTicket = await TicketModel.findOne({
-        guildId: interaction.guild.id,
-        userId: interaction.user.id,
-        type: 'purchase',
-        status: 'open',
-      });
+      const openTicket = await resolveOpenTicket(interaction.guild, interaction.user.id, 'purchase');
 
       if (openTicket) {
         await interaction.update({
