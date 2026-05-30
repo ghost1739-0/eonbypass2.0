@@ -489,13 +489,25 @@ export class ModmailService {
   }
 
   private async allocateTicketNumber(category: ModmailCategory): Promise<number> {
-    const counter = await ModmailCounterModel.findOneAndUpdate(
-      { _id: `modmail-ticket-number:${category}` },
-      { $inc: { value: 1 } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    const openTickets = await ModmailTicketModel.find({ category, status: 'open' })
+      .sort({ ticketNumber: 1 })
+      .select({ ticketNumber: 1, _id: 0 })
+      .lean();
 
-    return counter?.value ?? 1;
+    let nextNumber = 1;
+
+    for (const ticket of openTickets) {
+      if (ticket.ticketNumber === nextNumber) {
+        nextNumber += 1;
+        continue;
+      }
+
+      if (ticket.ticketNumber > nextNumber) {
+        break;
+      }
+    }
+
+    return nextNumber;
   }
 
   private async syncCategoryCounters(highestOpenByCategory: Record<ModmailCategory, number>): Promise<void> {
