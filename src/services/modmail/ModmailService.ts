@@ -3,6 +3,7 @@ import {
   ChannelType,
   EmbedBuilder,
   Guild,
+  GuildBasedChannel,
   Message,
   PermissionFlagsBits,
   StringSelectMenuInteraction,
@@ -300,19 +301,20 @@ export class ModmailService {
     this.byUser.delete(ticket.userId);
     this.byChannel.delete(ticket.channelId);
 
+    const closedChannel = await this.fetchTextChannel(ticket.channelId);
     await this.sendTicketClosedLog(ticket, closedBy).catch(() => undefined);
+
+    if (closedChannel) {
+      await this.moveClosedChannelToLogCategory(closedChannel, ticket.category).catch(() => undefined);
+    }
 
     const user = await this.client.users.fetch(ticket.userId).catch(() => null);
     if (user) {
       await this.purgeBotDmMessages(user).catch(() => undefined);
     }
 
-    const channel = await this.fetchTextChannel(ticket.channelId);
-    if (channel) {
-      await channel.send(`🔒 Ticket kapatıldı. Kapatan: ${closedBy}`).catch(() => undefined);
-      setTimeout(() => {
-        void channel.delete('Modmail ticket closed').catch(() => undefined);
-      }, 3000);
+    if (closedChannel) {
+      await closedChannel.send(`🔒 Ticket kapatıldı. Kapatan: ${closedBy}`).catch(() => undefined);
     }
   }
 
@@ -342,6 +344,16 @@ export class ModmailService {
       .setTimestamp();
 
     await (logChannel as any).send({ embeds: [embed] });
+  }
+
+  private async moveClosedChannelToLogCategory(channel: TextChannel, category: ModmailCategory): Promise<void> {
+    const logCategoryId = await this.getLogCategoryId(category);
+    if (!logCategoryId) {
+      return;
+    }
+
+    await channel.setParent(logCategoryId, { lockPermissions: true }).catch(() => undefined);
+    await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { ViewChannel: false }).catch(() => undefined);
   }
 
   private async purgeBotDmMessages(user: User): Promise<void> {
@@ -449,6 +461,29 @@ export class ModmailService {
       case 'inquiry':
         return config.modmailInquiryLogChannelId;
     }
+  }
+
+  private async getLogCategoryId(category: ModmailCategory): Promise<string | null> {
+    const guild = await this.client.guilds.fetch(config.modmailManagementGuildId).catch(() => null);
+    if (!guild) {
+      return null;
+    }
+
+    const channelId = this.getLogChannelId(category);
+    const channel = await guild.channels.fetch(channelId).catch(() => null);
+    if (!channel) {
+      return null;
+    }
+
+    if (channel.type === ChannelType.GuildCategory) {
+      return channel.id;
+    }
+
+    if ('parentId' in channel && channel.parentId) {
+      return channel.parentId;
+    }
+
+    return null;
   }
 
   private getOpenTicketTitle(category: ModmailCategory): string {
