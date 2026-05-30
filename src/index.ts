@@ -1,9 +1,12 @@
 import { BotClient } from './client/BotClient';
 import { config } from './config/config';
 import { Database } from './database/connection';
+import { startHealthServer, stopHealthServer } from './utils/healthServer';
 
 async function main(): Promise<void> {
   console.log('[Bot] Starting EonBypass 2.0...');
+
+  startHealthServer();
 
   await Database.connect();
 
@@ -15,6 +18,7 @@ async function main(): Promise<void> {
     console.log(`[Bot] Received ${signal}, shutting down...`);
     client.destroy();
     await Database.disconnect();
+    await stopHealthServer();
     process.exit(0);
   };
 
