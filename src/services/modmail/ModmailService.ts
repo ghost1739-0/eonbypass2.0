@@ -50,6 +50,40 @@ export class ModmailService {
     console.log(`[Modmail] bootstrap complete. open=${this.byUser.size}`);
   }
 
+  public async openTicketForPurchase(user: User, meta?: { productTitle?: string; productPrice?: string; productDescription?: string }) {
+    const existing = await this.getOpenTicketByUser(user.id);
+    if (existing) {
+      return existing;
+    }
+
+    const ticket = await this.createTicket('purchase', user, meta);
+
+    // Send a single DM to user with jump link and ticket id (Purchase Ticket Created embed)
+    try {
+      const guildId = config.modmailManagementGuildId;
+      const jumpUrl = `https://discord.com/channels/${guildId}/${ticket.channelId}`;
+
+      await user.send({
+        embeds: [
+          {
+            title: 'Purchase Ticket Created',
+            color: 0x5865f2,
+            description: 'Your ticket has been created. Click the link below to jump to the channel.',
+            fields: [
+              { name: 'Channel', value: `[Open Ticket](${jumpUrl})` },
+              { name: 'Ticket ID', value: `#${ticket.ticketId}` },
+            ],
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      });
+    } catch {
+      /* ignore DM failures */
+    }
+
+    return ticket;
+  }
+
   public async openFromPanel(interaction: StringSelectMenuInteraction): Promise<void> {
     const category = interaction.values[0] as ModmailCategory;
     if (!this.isValidCategory(category)) {
@@ -170,7 +204,11 @@ export class ModmailService {
     }).catch(() => undefined);
   }
 
-  private async createTicket(category: ModmailCategory, user: User): Promise<ModmailTicketDocument> {
+  private async createTicket(
+    category: ModmailCategory,
+    user: User,
+    meta?: { productTitle?: string; productPrice?: string; productDescription?: string }
+  ): Promise<ModmailTicketDocument> {
     const guild = await this.client.guilds.fetch(config.modmailManagementGuildId);
     const parent = this.getParentCategory(guild, category);
 
@@ -234,6 +272,22 @@ export class ModmailService {
     });
 
     await intro.pin().catch(() => undefined);
+
+    // If product metadata provided, add a product summary embed into the ticket channel.
+    if (meta?.productTitle) {
+      await channel.send({
+        embeds: [
+          {
+            title: 'Product / Ürün',
+            description: meta.productDescription ?? '—',
+            fields: [
+              { name: 'Title', value: meta.productTitle, inline: true },
+              { name: 'Price', value: meta.productPrice ?? '—', inline: true },
+            ],
+          },
+        ],
+      }).catch(() => undefined);
+    }
     return ticket;
   }
 

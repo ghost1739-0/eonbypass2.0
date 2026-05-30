@@ -1,9 +1,7 @@
-import { EmbedBuilder, StringSelectMenuInteraction } from 'discord.js';
+import { StringSelectMenuInteraction } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { ProductModel } from '../../database/models/Product';
-import { TicketModel } from '../../database/models/Ticket';
 import { CustomIds } from '../../utils/constants';
-import { createTicketChannel, resolveOpenTicket } from '../../utils/ticketHelpers';
 
 export class SelectMenuHandler {
   constructor(private readonly client: BotClient) {}
@@ -44,43 +42,17 @@ export class SelectMenuHandler {
         return;
       }
 
-      const openTicket = await resolveOpenTicket(interaction.guild, interaction.user.id, 'purchase');
-
-      if (openTicket) {
-        await interaction.update({
-          content: `❌ Zaten açık bir satın alma talebiniz var: <#${openTicket.channelId}>`,
-          components: [],
-        });
-        return;
-      }
-
       await interaction.deferUpdate();
 
       const member = await interaction.guild.members.fetch(interaction.user.id);
-      const { ticketId } = await createTicketChannel(interaction.guild, member, 'purchase', { product });
-
-      try {
-        await interaction.user.send({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x5865f2)
-              .setTitle('CFX Sense Support')
-              .setDescription('**✅ Your ticket has been created!**\nOur team will respond shortly.')
-              .addFields(
-                { name: 'Ticket ID', value: `#${ticketId}`, inline: true },
-                { name: 'Status', value: 'Open', inline: true },
-                { name: 'Type', value: 'Purchase', inline: true }
-              )
-              .setFooter({ text: `CFX Sense • Support` })
-              .setTimestamp(),
-          ],
-        });
-      } catch {
-        /* couldn't DM user, ignore */
-      }
+      const ticket = await this.client.modmail.openTicketForPurchase(member.user, {
+        productTitle: product.title,
+        productPrice: product.price,
+        productDescription: product.description,
+      });
 
       await interaction.editReply({
-        content: `✅ Ticket #${ticketId} created! Check your DMs.`,
+        content: `✅ Ticket #${ticket.ticketId} created! Check your DMs.`,
         components: [],
       });
     } catch (error) {
