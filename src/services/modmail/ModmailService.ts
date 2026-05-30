@@ -50,23 +50,27 @@ export class ModmailService {
     console.log(`[Modmail] bootstrap complete. open=${this.byUser.size}`);
   }
 
-  public async openTicketForPurchase(user: User, meta?: { productTitle?: string; productPrice?: string; productDescription?: string }) {
+  public async openTicket(
+    category: ModmailCategory,
+    user: User,
+    meta?: { productTitle?: string; productPrice?: string; productDescription?: string }
+  ) {
     const existing = await this.getOpenTicketByUser(user.id);
     if (existing) {
       return existing;
     }
 
-    const ticket = await this.createTicket('purchase', user, meta);
+    const ticket = await this.createTicket(category, user, meta);
 
-    // Send a single DM to user with jump link and ticket id (Purchase Ticket Created embed)
     try {
       const guildId = config.modmailManagementGuildId;
       const jumpUrl = `https://discord.com/channels/${guildId}/${ticket.channelId}`;
+      const categoryLabel = this.getOpenTicketTitle(category);
 
       await user.send({
         embeds: [
           {
-            title: 'Purchase Ticket Created',
+            title: categoryLabel,
             color: 0x5865f2,
             description: 'Your ticket has been created. Click the link below to jump to the channel.',
             fields: [
@@ -84,6 +88,13 @@ export class ModmailService {
     return ticket;
   }
 
+  public async openTicketForPurchase(
+    user: User,
+    meta?: { productTitle?: string; productPrice?: string; productDescription?: string }
+  ) {
+    return this.openTicket('purchase', user, meta);
+  }
+
   public async openFromPanel(interaction: StringSelectMenuInteraction): Promise<void> {
     const category = interaction.values[0] as ModmailCategory;
     if (!this.isValidCategory(category)) {
@@ -99,25 +110,11 @@ export class ModmailService {
       return;
     }
 
-    const ticket = await this.createTicket(category, interaction.user);
+    const ticket = await this.openTicket(category, interaction.user);
 
     await interaction.editReply({
       content: `✅ İşleminiz DM üzerinden başlatıldı, lütfen DM kutunuzu kontrol edin.\nTicket ID: #${ticket.ticketId}`,
     });
-
-    await interaction.user.send({
-      embeds: [
-        {
-          title: 'Ticket Başlatıldı / Ticket Started',
-          color: 0x5865f2,
-          description:
-            `Konu: ${getModmailCategoryLabel(category)}\n` +
-            'Mesajlarınız artık DM ile yetkili sunucusundaki ticket kanalına iletiliyor.',
-          footer: { text: `Ticket ID: #${ticket.ticketId}` },
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    }).catch(() => undefined);
   }
 
   public async closeTicket(interaction: ButtonInteraction): Promise<void> {
@@ -409,6 +406,17 @@ export class ModmailService {
         return guild.channels.cache.has(config.modmailSupportCategoryId) ? config.modmailSupportCategoryId : null;
       case 'inquiry':
         return guild.channels.cache.has(config.modmailInquiryCategoryId) ? config.modmailInquiryCategoryId : null;
+    }
+  }
+
+  private getOpenTicketTitle(category: ModmailCategory): string {
+    switch (category) {
+      case 'purchase':
+        return 'Purchase Ticket Created';
+      case 'support':
+        return 'Support Ticket Created';
+      case 'inquiry':
+        return 'Product Inquiry Ticket Created';
     }
   }
 

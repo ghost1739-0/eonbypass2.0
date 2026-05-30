@@ -20,8 +20,25 @@ export class SelectMenuHandler {
     }
 
     if (customId === CustomIds.MODMAIL_START) {
-      await this.client.modmail.openFromPanel(interaction);
+      await this.handleModmailPanelSelect(interaction);
     }
+  }
+
+  private async handleModmailPanelSelect(interaction: StringSelectMenuInteraction): Promise<void> {
+    const category = interaction.values[0] as 'purchase' | 'support' | 'inquiry';
+
+    if (!interaction.guild || !interaction.member) {
+      await interaction.reply({ content: 'Geçersiz işlem.', ephemeral: true });
+      return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const ticket = await this.client.modmail.openTicket(category, interaction.user);
+
+    await interaction.editReply({
+      content: `✅ İşleminiz DM üzerinden başlatıldı, lütfen DM kutunuzu kontrol edin.\nTicket ID: #${ticket.ticketId}`,
+    });
   }
 
   private async handleProductSelect(interaction: StringSelectMenuInteraction): Promise<void> {
