@@ -25,6 +25,7 @@ import {
 export class ModmailService {
   private readonly byUser = new Map<string, ModmailTicketDocument>();
   private readonly byChannel = new Map<string, ModmailTicketDocument>();
+  private readonly processedMessageIds = new Set<string>();
   private bootstrapped = false;
 
   constructor(private readonly client: BotClient) {}
@@ -150,6 +151,10 @@ export class ModmailService {
       return;
     }
 
+    if (!this.markMessageProcessed(message.id)) {
+      return;
+    }
+
     const ticket = await this.getOpenTicketByUser(message.author.id);
     if (!ticket) {
       await (message.channel as any)
@@ -177,6 +182,10 @@ export class ModmailService {
 
   public async handleStaffMessage(message: Message): Promise<void> {
     if (message.author.bot || !message.guild || message.guild.id !== config.modmailManagementGuildId) {
+      return;
+    }
+
+    if (!this.markMessageProcessed(message.id)) {
       return;
     }
 
@@ -306,6 +315,7 @@ export class ModmailService {
 
     const user = await this.client.users.fetch(ticket.userId).catch(() => null);
     if (user) {
+      await this.purgeBotDmMessages(user).catch(() => undefined);
       await user.send('Biletiniz sonlandırıldı').catch(() => undefined);
     }
 
@@ -487,6 +497,46 @@ export class ModmailService {
 
     const parsed = Number(match[1]);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private markMessageProcessed(messageId: string): boolean {
+    if (this.processedMessageIds.has(messageId)) {
+      return false;
+    }
+
+    this.processedMessageIds.add(messageId);
+    setTimeout(() => {
+      this.processedMessageIds.delete(messageId);
+    }, 10_000);
+
+    return true;
+  }
+
+  private async purgeBotDmMessages(user: User): Promise<void> {
+    const dmChannel = await user.createDM().catch(() => null);
+    if (!dmChannel) {
+      return;
+    }
+
+    let before: string | undefined;
+    for (let page = 0; page < 10; page += 1) {
+      const messages = await dmChannel.messages.fetch({ limit: 100, before }).catch(() => null);
+      if (!messages || messages.size === 0) {
+        break;
+      }
+
+      before = messages.last()?.id;
+
+      for (const message of messages.values()) {
+        if (message.author.id === this.client.user?.id) {
+          await message.delete().catch(() => undefined);
+        }
+      }
+
+      if (messages.size < 100) {
+        break;
+      }
+    }
   }
 
   private getOpenTicketTitle(category: ModmailCategory): string {
