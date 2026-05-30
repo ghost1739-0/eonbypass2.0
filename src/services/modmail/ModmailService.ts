@@ -170,9 +170,10 @@ export class ModmailService {
       return;
     }
 
+    // Post customer's message content as a normal message (no prefix), attachments forwarded.
     await channel.send({
-      content: formatRelayMessage('Müşteri', message.author.username, message.content),
-      files: [...message.attachments.values()].map((attachment) => attachment.url),
+      content: message.content || undefined,
+      files: [...message.attachments.values()].map((attachment) => ({ attachment: attachment.url, name: attachment.name })),
       allowedMentions: { parse: [] },
     });
   }
@@ -197,9 +198,11 @@ export class ModmailService {
       return;
     }
 
+    const roleLabel = getModmailCategoryLabel(ticket.category);
+    const staffPrefix = `${message.author.username} (${roleLabel}):`;
     await targetUser.send({
-      content: formatRelayMessage('Yetkili', message.author.username, message.content),
-      files: [...message.attachments.values()].map((attachment) => attachment.url),
+      content: `${staffPrefix} ${message.content || ''}`.trim(),
+      files: [...message.attachments.values()].map((attachment) => ({ attachment: attachment.url, name: attachment.name })),
       allowedMentions: { parse: [] },
     }).catch(() => undefined);
   }
