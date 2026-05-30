@@ -23,4 +23,7 @@ export const config = {
   modmailPurchaseCategoryId: requireEnv('MODMAIL_PURCHASE_CATEGORY_ID'),
   modmailSupportCategoryId: requireEnv('MODMAIL_SUPPORT_CATEGORY_ID'),
   modmailInquiryCategoryId: requireEnv('MODMAIL_INQUIRY_CATEGORY_ID'),
+  modmailPurchaseLogChannelId: requireEnv('MODMAIL_PURCHASE_LOG_CHANNEL_ID'),
+  modmailSupportLogChannelId: requireEnv('MODMAIL_SUPPORT_LOG_CHANNEL_ID'),
+  modmailInquiryLogChannelId: requireEnv('MODMAIL_INQUIRY_LOG_CHANNEL_ID'),
 } as const;

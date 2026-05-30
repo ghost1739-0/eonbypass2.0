@@ -1,6 +1,7 @@
 import {
   ButtonInteraction,
   ChannelType,
+  EmbedBuilder,
   Guild,
   Message,
   PermissionFlagsBits,
@@ -299,6 +300,8 @@ export class ModmailService {
     this.byUser.delete(ticket.userId);
     this.byChannel.delete(ticket.channelId);
 
+    await this.sendTicketClosedLog(ticket, closedBy).catch(() => undefined);
+
     const user = await this.client.users.fetch(ticket.userId).catch(() => null);
     if (user) {
       await this.purgeBotDmMessages(user).catch(() => undefined);
@@ -311,6 +314,34 @@ export class ModmailService {
         void channel.delete('Modmail ticket closed').catch(() => undefined);
       }, 3000);
     }
+  }
+
+  private async sendTicketClosedLog(ticket: ModmailTicketDocument, closedBy: string): Promise<void> {
+    const guild = await this.client.guilds.fetch(config.modmailManagementGuildId).catch(() => null);
+    if (!guild) {
+      return;
+    }
+
+    const logChannelId = this.getLogChannelId(ticket.category);
+    const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+    if (!logChannel || !('send' in logChannel)) {
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0xed4245)
+      .setTitle('Ticket Kapatıldı')
+      .addFields(
+        { name: 'Kullanıcı', value: ticket.userTag, inline: true },
+        { name: 'Kullanıcı ID', value: ticket.userId, inline: true },
+        { name: 'Kategori', value: getModmailCategoryLabel(ticket.category), inline: true },
+        { name: 'Ticket ID', value: `#${ticket.ticketId}`, inline: true },
+        { name: 'Kapatan', value: closedBy, inline: true },
+        { name: 'Kanal', value: `<#${ticket.channelId}>`, inline: true }
+      )
+      .setTimestamp();
+
+    await (logChannel as any).send({ embeds: [embed] });
   }
 
   private async purgeBotDmMessages(user: User): Promise<void> {
@@ -406,6 +437,17 @@ export class ModmailService {
         return guild.channels.cache.has(config.modmailSupportCategoryId) ? config.modmailSupportCategoryId : null;
       case 'inquiry':
         return guild.channels.cache.has(config.modmailInquiryCategoryId) ? config.modmailInquiryCategoryId : null;
+    }
+  }
+
+  private getLogChannelId(category: ModmailCategory): string {
+    switch (category) {
+      case 'purchase':
+        return config.modmailPurchaseLogChannelId;
+      case 'support':
+        return config.modmailSupportLogChannelId;
+      case 'inquiry':
+        return config.modmailInquiryLogChannelId;
     }
   }
 
