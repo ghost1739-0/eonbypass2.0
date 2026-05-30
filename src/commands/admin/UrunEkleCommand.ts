@@ -42,21 +42,36 @@ export default class UrunEkleCommand extends Command {
       const description = interaction.options.getString('açıklama', true);
       const price = interaction.options.getString('fiyat', true);
 
-      const existing = await ProductModel.findOne({ title });
-      if (existing) {
+      // Use an atomic upsert to avoid race conditions and duplicate creations
+      const resAny = (await ProductModel.findOneAndUpdate(
+        { title },
+        {
+          $setOnInsert: {
+            title,
+            description,
+            price,
+            createdBy: interaction.user.id,
+          },
+        },
+
+        { upsert: true, returnDocument: 'after', rawResult: true }
+      )) as any;
+
+      const product = resAny.value ?? resAny;
+      const created = Boolean(resAny.lastErrorObject && resAny.lastErrorObject.updatedExisting === false);
+
+      if (!product) {
+        await interaction.reply({ content: '❌ Ürün oluşturulamadı.', ephemeral: true });
+        return;
+      }
+
+      if (!created) {
         await interaction.reply({
           content: '❌ Bu başlıkta bir ürün zaten mevcut. / A product with this title already exists.',
           ephemeral: true,
         });
         return;
       }
-
-      const product = await ProductModel.create({
-        title,
-        description,
-        price,
-        createdBy: interaction.user.id,
-      });
 
       const embed = new EmbedBuilder()
         .setColor(0x57f287)
