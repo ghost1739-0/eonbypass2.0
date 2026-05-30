@@ -1,4 +1,4 @@
-import { StringSelectMenuInteraction } from 'discord.js';
+import { EmbedBuilder, StringSelectMenuInteraction } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { ProductModel } from '../../database/models/Product';
 import { TicketModel } from '../../database/models/Ticket';
@@ -22,82 +22,81 @@ export class SelectMenuHandler {
   }
 
   private async handleProductSelect(interaction: StringSelectMenuInteraction): Promise<void> {
-    if (!interaction.guild || !interaction.member) {
-      await interaction.reply({ content: 'Geçersiz işlem.', ephemeral: true });
-      return;
-    }
+    try {
+      if (!interaction.guild || !interaction.member) {
+        await interaction.reply({ content: 'Geçersiz işlem.', ephemeral: true });
+        return;
+      }
 
-    const productId = interaction.values[0];
-    const product = await ProductModel.findById(productId);
+      const productId = interaction.values[0];
+      const product = await ProductModel.findById(productId);
 
-    if (!product) {
-      await interaction.reply({
-        content: '❌ Seçilen ürün bulunamadı. / Selected product not found.',
-        ephemeral: true,
+      if (!product) {
+        await interaction.reply({
+          content: '❌ Seçilen ürün bulunamadı. / Selected product not found.',
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const openTicket = await TicketModel.findOne({
+        guildId: interaction.guild.id,
+        userId: interaction.user.id,
+        type: 'purchase',
+        status: 'open',
       });
-      return;
-    }
 
-    const openTicket = await TicketModel.findOne({
-      guildId: interaction.guild.id,
-      userId: interaction.user.id,
-      type: 'purchase',
-      status: 'open',
-    });
+      if (openTicket) {
+        await interaction.update({
+          content: `❌ Zaten açık bir satın alma talebiniz var: <#${openTicket.channelId}>`,
+          components: [],
+        });
+        return;
+      }
 
-    if (openTicket) {
-      await interaction.update({
-        content: `❌ Zaten açık bir satın alma talebiniz var: <#${openTicket.channelId}>`,
+      await interaction.deferUpdate();
+
+      const member = await interaction.guild.members.fetch(interaction.user.id);
+      const { ticketId } = await createTicketChannel(interaction.guild, member, 'purchase', { product });
+
+      try {
+        await interaction.user.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x5865f2)
+              .setTitle('CFX Sense Support')
+              .setDescription('**✅ Your ticket has been created!**\nOur team will respond shortly.')
+              .addFields(
+                { name: 'Ticket ID', value: `#${ticketId}`, inline: true },
+                { name: 'Status', value: 'Open', inline: true },
+                { name: 'Type', value: 'Purchase', inline: true }
+              )
+              .setFooter({ text: `CFX Sense • Support` })
+              .setTimestamp(),
+          ],
+        });
+      } catch {
+        /* couldn't DM user, ignore */
+      }
+
+      await interaction.editReply({
+        content: `✅ Ticket #${ticketId} created! Check your DMs.`,
         components: [],
       });
-      return;
+    } catch (error) {
+      console.error('[SelectMenu] handleProductSelect error:', error);
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({
+          content: '❌ Bir hata oluştu. Lütfen tekrar deneyin. / An error occurred.',
+          components: [],
+        }).catch(() => undefined);
+      } else {
+        await interaction.reply({
+          content: '❌ Bir hata oluştu. Lütfen tekrar deneyin. / An error occurred.',
+          ephemeral: true,
+        }).catch(() => undefined);
+      }
     }
-
-    await interaction.deferUpdate();
-
-    const member = await interaction.guild.members.fetch(interaction.user.id);
-    let channel;
-    let ticketId: string | undefined;
-
-    try {
-      const res = await createTicketChannel(interaction.guild, member, 'purchase', { product });
-      channel = res.channel;
-      ticketId = res.ticketId;
-    } catch (err) {
-      console.error('[SelectMenu] createTicketChannel error:', err);
-      await interaction.followUp({
-        content:
-          '❌ Kanal oluşturulurken bir hata oluştu. Lütfen sunucu ayarlarını (kategori ID ve bot izinleri) kontrol edin ve tekrar deneyin.',
-        ephemeral: true,
-      });
-      return;
-    }
-
-    try {
-      await interaction.user.send({
-        embeds: [
-          {
-            title: `${interaction.guild.name} Support`,
-            description:
-              '**✅ Your ticket has been created!**\nOur team will respond shortly.\n\n**TR:** Satın alma talebiniz oluşturuldu. Ekibimiz kısa süre içinde size yardımcı olacaktır.',
-            color: 0x57f287,
-            fields: [
-              { name: 'Ticket ID', value: `#${ticketId}` },
-              { name: 'Status', value: 'Open' },
-              { name: 'Type', value: 'Purchase' },
-            ],
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      });
-    } catch {
-      /* couldn't DM user, ignore */
-    }
-
-    await interaction.followUp({
-      content: `✅ Ticket #${ticketId} created! Check your DMs.`,
-      ephemeral: true,
-    });
   }
 
   private async handleProductRemove(interaction: StringSelectMenuInteraction): Promise<void> {

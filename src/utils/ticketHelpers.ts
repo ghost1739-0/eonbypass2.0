@@ -13,6 +13,7 @@ import { config } from '../config/config';
 import { ProductDocument } from '../database/models/Product';
 import { TicketModel } from '../database/models/Ticket';
 import { CustomIds, TicketType } from './constants';
+import { getProductDescription, getProductPrice, getProductTitle } from './productHelpers';
 
 export function generateTicketId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.slice(-8);
@@ -131,17 +132,17 @@ function buildTicketEmbed(
       .addFields(
         {
           name: 'Product / Ürün',
-          value: options.product.title,
+          value: getProductTitle(options.product),
           inline: true,
         },
         {
           name: 'Price / Fiyat',
-          value: options.product.price,
+          value: getProductPrice(options.product),
           inline: true,
         },
         {
           name: 'Description / Açıklama',
-          value: options.product.description,
+          value: getProductDescription(options.product),
         }
       );
     return embed;

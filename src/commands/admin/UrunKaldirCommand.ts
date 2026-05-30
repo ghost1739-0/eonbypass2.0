@@ -11,6 +11,7 @@ import { ProductModel } from '../../database/models/Product';
 import { Command } from '../../structures/Command';
 import { CommandOptions } from '../../types';
 import { CustomIds } from '../../utils/constants';
+import { getProductPrice, getProductTitle } from '../../utils/productHelpers';
 
 export default class UrunKaldirCommand extends Command {
   public readonly options: CommandOptions = {
@@ -39,8 +40,8 @@ export default class UrunKaldirCommand extends Command {
         )
         .addFields(
           products.map((p, i) => ({
-            name: `${i + 1}. ${p.title}`,
-            value: `Fiyat: ${p.price} | ID: \`${p._id}\``,
+            name: `${i + 1}. ${getProductTitle(p)}`,
+            value: `Fiyat: ${getProductPrice(p)} | ID: \`${p._id}\``,
             inline: false,
           }))
         )
@@ -51,8 +52,8 @@ export default class UrunKaldirCommand extends Command {
         .setPlaceholder('Ürün seçin / Select a product')
         .addOptions(
           products.map((p) => ({
-            label: p.title.slice(0, 100),
-            description: `Fiyat: ${p.price}`.slice(0, 100),
+            label: getProductTitle(p).slice(0, 100),
+            description: `Fiyat: ${getProductPrice(p)}`.slice(0, 100),
             value: p._id.toString(),
           }))
         );

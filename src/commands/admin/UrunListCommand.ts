@@ -3,6 +3,7 @@ import { BotClient } from '../../client/BotClient';
 import { ProductModel } from '../../database/models/Product';
 import { Command } from '../../structures/Command';
 import { CommandOptions } from '../../types';
+import { getProductPrice, getProductTitle } from '../../utils/productHelpers';
 
 export default class UrunListCommand extends Command {
   public readonly options: CommandOptions = {
@@ -23,7 +24,11 @@ export default class UrunListCommand extends Command {
         .setColor(0x2b2d31)
         .setTimestamp()
         .addFields(
-          products.map((p, i) => ({ name: `${i + 1}. ${p.title}`, value: `Fiyat: ${p.price} | ID: ${p._id}`, inline: false }))
+          products.map((p, i) => ({
+            name: `${i + 1}. ${getProductTitle(p)}`,
+            value: `Fiyat: ${getProductPrice(p)} | ID: ${p._id}`,
+            inline: false,
+          }))
         );
 
       await interaction.reply({ embeds: [embed], ephemeral: true });

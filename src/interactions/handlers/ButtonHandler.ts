@@ -11,6 +11,7 @@ import { config } from '../../config/config';
 import { ProductModel } from '../../database/models/Product';
 import { TicketModel } from '../../database/models/Ticket';
 import { CustomIds } from '../../utils/constants';
+import { getProductDescription, getProductPrice, getProductTitle } from '../../utils/productHelpers';
 import { createTicketChannel } from '../../utils/ticketHelpers';
 
 export class ButtonHandler {
@@ -77,8 +78,8 @@ export class ButtonHandler {
       .setPlaceholder('Ürün Seçin / Select a Product')
       .addOptions(
         products.map((p) => ({
-          label: p.title.slice(0, 100),
-          description: `${p.price} — ${p.description}`.slice(0, 100),
+          label: getProductTitle(p).slice(0, 100),
+          description: `${getProductPrice(p)} — ${getProductDescription(p)}`.slice(0, 100),
           value: p._id.toString(),
         }))
       );

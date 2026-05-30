@@ -13,6 +13,8 @@ import { CommandOptions } from '../../types';
 import { CustomIds } from '../../utils/constants';
 import { buildFeedbackPanelEmbed } from '../../utils/ticketHelpers';
 
+const panelLocks = new Set<string>();
+
 export default class FeedbackKurCommand extends Command {
   public readonly options: CommandOptions = {
     adminOnly: true,
@@ -41,35 +43,48 @@ export default class FeedbackKurCommand extends Command {
         return;
       }
 
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(CustomIds.FEEDBACK_OPEN)
-          .setLabel('Submit Feedback / Geri Bildirim Gönder')
-          .setEmoji('📝')
-          .setStyle(ButtonStyle.Primary)
-      );
-
-      // Prevent duplicate feedback panels in the same channel
-      try {
-        const recent = await textChannel.messages.fetch({ limit: 50 });
-        const exists = recent.some((m) => m.author?.id === _client.user?.id && m.embeds?.[0]?.title === 'Feedback / Geri Bildirim');
-        if (exists) {
-          await interaction.reply({ content: `⚠️ Bu kanalda önceden bir feedback paneli bulunuyor.`, ephemeral: true });
-          return;
-        }
-      } catch {
-        // ignore fetch failures
+      const lockKey = `feedback:${textChannel.id}`;
+      if (panelLocks.has(lockKey)) {
+        await interaction.reply({ content: '⚠️ Bu kanalda feedback paneli zaten hazırlanıyor.', ephemeral: true });
+        return;
       }
 
-      await textChannel.send({
-        embeds: [buildFeedbackPanelEmbed()],
-        components: [row],
-      });
+      panelLocks.add(lockKey);
 
-      await interaction.reply({
-        content: `✅ Geri bildirim paneli ${textChannel} kanalına gönderildi.`,
-        ephemeral: true,
-      });
+      try {
+        const recent = await textChannel.messages.fetch({ limit: 50 });
+        const botMessages = recent.filter(
+          (message) => message.author.id === _client.user?.id && message.embeds[0]?.title === 'Feedback / Geri Bildirim'
+        );
+
+        for (const message of botMessages.values()) {
+          await message.delete().catch(() => undefined);
+        }
+      } catch {
+        // ignore fetch failures and continue sending one fresh panel
+      }
+
+      try {
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(CustomIds.FEEDBACK_OPEN)
+            .setLabel('Submit Feedback / Geri Bildirim Gönder')
+            .setEmoji('📝')
+            .setStyle(ButtonStyle.Primary)
+        );
+
+        await textChannel.send({
+          embeds: [buildFeedbackPanelEmbed()],
+          components: [row],
+        });
+
+        await interaction.reply({
+          content: `✅ Geri bildirim paneli ${textChannel} kanalına gönderildi.`,
+          ephemeral: true,
+        });
+      } finally {
+        panelLocks.delete(lockKey);
+      }
     },
   };
 }
