@@ -1,4 +1,4 @@
-import { ModalSubmitInteraction } from 'discord.js';
+import { ModalSubmitInteraction, EmbedBuilder } from 'discord.js';
 import type { TextBasedChannel } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { FeedbackModel } from '../../database/models/Feedback';
@@ -84,9 +84,17 @@ export class ModalHandler {
       if (feedbackChannelId) {
         const channel = await this.client.channels.fetch(feedbackChannelId).catch(() => null);
         if (channel && 'send' in channel && typeof (channel as any).send === 'function') {
-          const sent = await (channel as any).send(
-            `<@${interaction.user.id}> kullanıcısı "${feedback}" şeklinde değerlendirme yaptı. Lisans: ${licenseKey}`
-          );
+          const embed = new EmbedBuilder()
+            .setColor(0xfee75c)
+            .setTitle('Feedback / Geri Bildirim')
+            .addFields(
+              { name: 'Kullanıcı', value: `<@${interaction.user.id}> (${interaction.user.id})`, inline: true },
+              { name: 'Lisans', value: licenseKey || '—', inline: true },
+              { name: 'Feedback', value: feedback }
+            )
+            .setTimestamp();
+
+          const sent = await (channel as any).send({ embeds: [embed] });
           // eslint-disable-next-line no-console
           console.log(
             `[Feedback] delivered to channel=${feedbackChannelId} user=${interaction.user.id} message=${sent?.id}`
