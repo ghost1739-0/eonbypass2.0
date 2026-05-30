@@ -37,7 +37,7 @@ export async function createTicketChannel(
     product?: ProductDocument;
     licenseKey?: string;
   }
-): Promise<TextChannel> {
+): Promise<{ channel: TextChannel; ticketId: string }> {
   const ticketId = generateTicketId();
   const prefix = getChannelPrefix(type);
   const channelName = `[${prefix}] ticket-${ticketId}`.toLowerCase().slice(0, 100);
@@ -78,7 +78,7 @@ export async function createTicketChannel(
     topic: `Ticket ${ticketId} | User: ${member.user.tag} | Type: ${type}`,
   });
 
-  await TicketModel.create({
+  const ticket = await TicketModel.create({
     ticketId,
     channelId: channel.id,
     guildId: guild.id,
@@ -104,7 +104,7 @@ export async function createTicketChannel(
     components: [closeRow],
   });
 
-  return channel;
+  return { channel, ticketId: ticket.ticketId };
 }
 
 function buildTicketEmbed(

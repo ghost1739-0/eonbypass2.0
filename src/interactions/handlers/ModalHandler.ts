@@ -4,6 +4,7 @@ import { FeedbackModel } from '../../database/models/Feedback';
 import { TicketModel } from '../../database/models/Ticket';
 import { CustomIds } from '../../utils/constants';
 import { createTicketChannel } from '../../utils/ticketHelpers';
+import { config } from '../../config/config';
 
 export class ModalHandler {
   constructor(private readonly client: BotClient) {}
@@ -48,7 +49,7 @@ export class ModalHandler {
     await interaction.deferReply({ ephemeral: true });
 
     const member = await interaction.guild.members.fetch(interaction.user.id);
-    const channel = await createTicketChannel(interaction.guild, member, ticketType, {
+    const { channel } = await createTicketChannel(interaction.guild, member, ticketType, {
       licenseKey,
     });
 
@@ -79,5 +80,31 @@ export class ModalHandler {
         '**TR:** Geri bildiriminiz için teşekkürler! Kaydedildi.',
       ephemeral: true,
     });
+
+    // Send feedback notification to configured channel if present
+    try {
+      const feedbackChannelId = config.feedbackChannelId;
+      if (feedbackChannelId && interaction.guild) {
+        const target = interaction.guild.channels.cache.get(feedbackChannelId);
+        if (target && target.isTextBased()) {
+          await target.send({
+            embeds: [
+              {
+                title: 'Feedback Received',
+                color: 0xfee75c,
+                fields: [
+                  { name: 'User', value: `${interaction.user.tag} (${interaction.user.id})` },
+                  { name: 'License Key', value: licenseKey },
+                  { name: 'Feedback', value: feedback },
+                ],
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          });
+        }
+      }
+    } catch {
+      /* ignore failures */
+    }
   }
 }

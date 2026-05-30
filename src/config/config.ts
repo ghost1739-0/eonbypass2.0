@@ -17,4 +17,5 @@ export const config = {
   mongoUri: requireEnv('MONGODB_URI'),
   ticketCategoryId: requireEnv('TICKET_CATEGORY_ID'),
   staffRoleId: process.env.STAFF_ROLE_ID,
+  feedbackChannelId: process.env.FEEDBACK_CHANNEL_ID ?? null,
 } as const;

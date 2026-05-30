@@ -1,10 +1,19 @@
 import { BotClient } from './client/BotClient';
+import dns from 'dns';
 import { config } from './config/config';
 import { Database } from './database/connection';
 import { startHealthServer, stopHealthServer } from './utils/healthServer';
 
 async function main(): Promise<void> {
   console.log('[Bot] Starting EonBypass 2.0...');
+
+  // Ensure DNS resolvers are set to reliable public servers to avoid SRV lookup failures
+  try {
+    dns.setServers(['1.1.1.1', '8.8.8.8']);
+    console.log('[Bot] DNS servers set to Cloudflare and Google (1.1.1.1, 8.8.8.8)');
+  } catch (err) {
+    console.warn('[Bot] Unable to set DNS servers:', err);
+  }
 
   startHealthServer();
 

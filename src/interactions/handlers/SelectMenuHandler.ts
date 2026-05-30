@@ -56,13 +56,33 @@ export class SelectMenuHandler {
     await interaction.deferUpdate();
 
     const member = await interaction.guild.members.fetch(interaction.user.id);
-    const channel = await createTicketChannel(interaction.guild, member, 'purchase', {
+    const { channel, ticketId } = await createTicketChannel(interaction.guild, member, 'purchase', {
       product,
     });
 
+    try {
+      await interaction.user.send({
+        embeds: [
+          {
+            title: `${interaction.guild.name} Support`,
+            description: '**✅ Your ticket has been created!**\nOur team will respond shortly.\n\n**TR:** Satın alma talebiniz oluşturuldu. Ekibimiz kısa süre içinde size yardımcı olacaktır.',
+            color: 0x57f287,
+            fields: [
+              { name: 'Ticket ID', value: `#${ticketId}` },
+              { name: 'Status', value: 'Open' },
+              { name: 'Type', value: 'Purchase' },
+            ],
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      });
+    } catch {
+      /* couldn't DM user, ignore */
+    }
+
     await interaction.followUp({
-      content: `✅ Ticket oluşturuldu: ${channel}`,
-      ephemeral: true,
+      content: `✅ Ticket #${ticketId} created! Check your DMs.`,
+      ephemeral: false,
     });
   }
 
