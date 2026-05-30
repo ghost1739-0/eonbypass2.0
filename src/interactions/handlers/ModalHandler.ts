@@ -88,7 +88,7 @@ export class ModalHandler {
             .setColor(0xfee75c)
             .setTitle('Feedback / Geri Bildirim')
             .addFields(
-              { name: 'Kullanıcı', value: `<@${interaction.user.id}> (${interaction.user.id})`, inline: true },
+              { name: 'Kullanıcı', value: `<@${interaction.user.id}>`, inline: true },
               { name: 'Lisans', value: licenseKey || '—', inline: true },
               { name: 'Feedback', value: feedback }
             )
