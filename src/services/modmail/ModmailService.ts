@@ -37,6 +37,11 @@ export class ModmailService {
     }
 
     const openTickets = await ModmailTicketModel.find({ status: 'open' });
+    const highestOpenByCategory: Record<ModmailCategory, number> = {
+      purchase: 0,
+      support: 0,
+      inquiry: 0,
+    };
 
     for (const ticket of openTickets) {
       const exists = await this.channelExists(ticket.channelId);
@@ -49,6 +54,17 @@ export class ModmailService {
 
       this.byUser.set(ticket.userId, ticket);
       this.byChannel.set(ticket.channelId, ticket);
+      highestOpenByCategory[ticket.category] = Math.max(highestOpenByCategory[ticket.category], ticket.ticketNumber ?? 0);
+    }
+
+    await this.syncCategoryCounters(highestOpenByCategory).catch((error) => {
+      console.error('[Modmail] counter sync failed:', error);
+    });
+
+    if (openTickets.length === 0) {
+      await this.resetAllCounters().catch((error) => {
+        console.error('[Modmail] counter reset failed:', error);
+      });
     }
 
     this.bootstrapped = true;
@@ -480,6 +496,27 @@ export class ModmailService {
     );
 
     return counter?.value ?? 1;
+  }
+
+  private async syncCategoryCounters(highestOpenByCategory: Record<ModmailCategory, number>): Promise<void> {
+    for (const category of ['purchase', 'support', 'inquiry'] as const) {
+      const highest = highestOpenByCategory[category];
+      await ModmailCounterModel.findOneAndUpdate(
+        { _id: `modmail-ticket-number:${category}` },
+        { $set: { value: highest } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
+  }
+
+  private async resetAllCounters(): Promise<void> {
+    for (const category of ['purchase', 'support', 'inquiry'] as const) {
+      await ModmailCounterModel.findOneAndUpdate(
+        { _id: `modmail-ticket-number:${category}` },
+        { $set: { value: 0 } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
   }
 
   private resolveTicketNumber(ticket: ModmailTicketDocument, channel?: TextChannel | null): number | null {
