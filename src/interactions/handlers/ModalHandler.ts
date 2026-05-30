@@ -44,13 +44,14 @@ export class ModalHandler {
 
     await interaction.deferReply({ ephemeral: true });
 
-    const member = await interaction.guild.members.fetch(interaction.user.id);
-    const { channel } = await createTicketChannel(interaction.guild, member, ticketType, {
-      licenseKey,
+    const ticket = await this.client.modmail.openTicket(ticketType, interaction.user, {
+      productTitle: undefined,
+      productPrice: undefined,
+      productDescription: `License Key: ${licenseKey}`,
     });
 
     await interaction.editReply({
-      content: `✅ Ticket oluşturuldu: ${channel}`,
+      content: `✅ İşleminiz DM üzerinden başlatıldı, lütfen DM kutunuzu kontrol edin.\nTicket ID: #${ticket.ticketId}`,
     });
   }
 
