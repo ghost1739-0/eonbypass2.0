@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { BotClient } from '../client/BotClient';
 import { Command } from '../structures/Command';
+import { isLoadableModuleFile } from '../utils/moduleLoader';
 
 export class CommandHandler {
   constructor(private readonly client: BotClient) {}
@@ -17,7 +18,7 @@ export class CommandHandler {
       const categoryPath = path.join(commandsPath, category);
       const commandFiles = fs
         .readdirSync(categoryPath)
-        .filter((file) => file.endsWith('.ts') || file.endsWith('.js'));
+        .filter(isLoadableModuleFile);
 
       for (const file of commandFiles) {
         const filePath = path.join(categoryPath, file);

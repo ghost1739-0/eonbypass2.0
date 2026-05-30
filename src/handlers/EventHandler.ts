@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { BotClient } from '../client/BotClient';
 import { Event } from '../structures/Event';
+import { isLoadableModuleFile } from '../utils/moduleLoader';
 
 export class EventHandler {
   constructor(private readonly client: BotClient) {}
@@ -10,7 +11,7 @@ export class EventHandler {
     const eventsPath = path.join(__dirname, '..', 'events');
     const eventFiles = fs
       .readdirSync(eventsPath)
-      .filter((file) => file.endsWith('.ts') || file.endsWith('.js'));
+      .filter(isLoadableModuleFile);
 
     for (const file of eventFiles) {
       const filePath = path.join(eventsPath, file);

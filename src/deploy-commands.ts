@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { config } from './config/config';
 import { Command } from './structures/Command';
+import { isLoadableModuleFile } from './utils/moduleLoader';
 
 async function deployCommands(): Promise<void> {
   const commands: ReturnType<Command['options']['data']['toJSON']>[] = [];
@@ -16,7 +17,7 @@ async function deployCommands(): Promise<void> {
     const categoryPath = path.join(commandsPath, category);
     const commandFiles = fs
       .readdirSync(categoryPath)
-      .filter((file) => file.endsWith('.ts') || file.endsWith('.js'));
+      .filter(isLoadableModuleFile);
 
     for (const file of commandFiles) {
       const filePath = path.join(categoryPath, file);
