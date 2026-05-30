@@ -13,6 +13,7 @@ import {
 import { BotClient } from '../../client/BotClient';
 import { config } from '../../config/config';
 import { ModmailCounterModel } from '../../database/models/ModmailCounter';
+import { ModmailRelayMessageModel } from '../../database/models/ModmailRelayMessage';
 import { ModmailTicketDocument, ModmailTicketModel } from '../../database/models/ModmailTicket';
 import { ModmailCategory } from '../../types';
 import {
@@ -151,7 +152,7 @@ export class ModmailService {
       return;
     }
 
-    if (!this.markMessageProcessed(message.id)) {
+    if (!(await this.claimRelayLock(message.id, message.channel.id, 'user-to-staff'))) {
       return;
     }
 
@@ -185,7 +186,7 @@ export class ModmailService {
       return;
     }
 
-    if (!this.markMessageProcessed(message.id)) {
+    if (!(await this.claimRelayLock(message.id, message.channel.id, 'staff-to-user'))) {
       return;
     }
 
@@ -499,17 +500,33 @@ export class ModmailService {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  private markMessageProcessed(messageId: string): boolean {
-    if (this.processedMessageIds.has(messageId)) {
+  private async claimRelayLock(
+    sourceMessageId: string,
+    sourceChannelId: string,
+    direction: 'user-to-staff' | 'staff-to-user'
+  ): Promise<boolean> {
+    if (this.processedMessageIds.has(sourceMessageId)) {
       return false;
     }
 
-    this.processedMessageIds.add(messageId);
-    setTimeout(() => {
-      this.processedMessageIds.delete(messageId);
-    }, 10_000);
+    try {
+      await ModmailRelayMessageModel.create({
+        sourceMessageId,
+        sourceChannelId,
+        direction,
+      });
+      this.processedMessageIds.add(sourceMessageId);
+      setTimeout(() => {
+        this.processedMessageIds.delete(sourceMessageId);
+      }, 10_000);
+      return true;
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        return false;
+      }
 
-    return true;
+      throw error;
+    }
   }
 
   private async purgeBotDmMessages(user: User): Promise<void> {
