@@ -2,9 +2,12 @@ import {
   ActionRowBuilder,
   ButtonInteraction,
   ModalBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   StringSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle,
+  EmbedBuilder,
 } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { config } from '../../config/config';
@@ -37,6 +40,16 @@ export class ButtonHandler {
 
     if (customId === CustomIds.FEEDBACK_OPEN) {
       await this.showFeedbackModal(interaction);
+      return;
+    }
+
+    if (customId === CustomIds.PRODUCT_DELETE_ALL_CONFIRM) {
+      await this.handleDeleteAllProductsConfirm(interaction);
+      return;
+    }
+
+    if (customId === CustomIds.PRODUCT_DELETE_ALL_CANCEL) {
+      await this.handleDeleteAllProductsCancel(interaction);
     }
   }
 
@@ -143,6 +156,38 @@ export class ButtonHandler {
     );
 
     await interaction.showModal(modal);
+  }
+
+  private async handleDeleteAllProductsConfirm(interaction: ButtonInteraction): Promise<void> {
+    if (!interaction.memberPermissions?.has('Administrator')) {
+      await interaction.reply({ content: '❌ Bu işlem için yönetici yetkisi gerekli.', ephemeral: true });
+      return;
+    }
+
+    const result = await ProductModel.deleteMany({});
+
+    const embed = new EmbedBuilder()
+      .setColor(0xed4245)
+      .setTitle('✅ Tüm Ürünler Silindi')
+      .setDescription(`Veritabanından **${result.deletedCount}** ürün silindi.`)
+      .setTimestamp();
+
+    await interaction.update({
+      embeds: [embed],
+      components: [],
+    });
+  }
+
+  private async handleDeleteAllProductsCancel(interaction: ButtonInteraction): Promise<void> {
+    if (!interaction.memberPermissions?.has('Administrator')) {
+      await interaction.reply({ content: '❌ Bu işlem için yönetici yetkisi gerekli.', ephemeral: true });
+      return;
+    }
+
+    await interaction.update({
+      content: 'İşlem iptal edildi.',
+      components: [],
+    });
   }
 
   private async handleCloseTicket(interaction: ButtonInteraction): Promise<void> {
