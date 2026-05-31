@@ -3,8 +3,7 @@ import http from 'http';
 let server: http.Server | null = null;
 
 export function startHealthServer(): void {
-  const port = process.env.PORT;
-  if (!port) return;
+  const port = process.env.HEALTH_PORT || process.env.HEALTHCHECK_PORT || '3001';
 
   server = http.createServer((_req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });

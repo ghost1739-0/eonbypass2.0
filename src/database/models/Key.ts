@@ -23,6 +23,5 @@ const keySchema = new Schema<KeyDocument>(
   { timestamps: { createdAt: true, updatedAt: true } }
 );
 
-keySchema.index({ key: 1 }, { unique: true });
 
 export const KeyModel = model<KeyDocument>('Key', keySchema);

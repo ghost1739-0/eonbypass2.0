@@ -7,7 +7,8 @@ function daysToMs(days: number) {
   return days * 24 * 60 * 60 * 1000;
 }
 
-export async function startApiServer(port = 10000): Promise<void> {
+export async function startApiServer(port?: number): Promise<void> {
+  const listenPort = Number(process.env.PORT || port || 10000);
   const app = express();
   app.use(express.json());
 
@@ -59,8 +60,8 @@ export async function startApiServer(port = 10000): Promise<void> {
     return res.json({ success: false, message: 'Invalid Key' });
   });
 
-  server = app.listen(port, () => {
-    console.log(`[API] Key verify API listening on port ${port}`);
+  server = app.listen(listenPort, () => {
+    console.log(`[API] Key verify API listening on port ${listenPort}`);
   });
 }
 

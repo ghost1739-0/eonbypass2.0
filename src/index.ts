@@ -22,8 +22,8 @@ async function main(): Promise<void> {
 
   const client = new BotClient();
   await client.initialize();
-  // start the verification API
-  await startApiServer(10000).catch((e) => console.error('[API] start error', e));
+  // start the verification API (use process.env.PORT on Render if set)
+  await startApiServer().catch((e) => console.error('[API] start error', e));
 
   await client.start(config.token);
 
