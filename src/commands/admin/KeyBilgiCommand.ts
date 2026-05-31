@@ -26,11 +26,22 @@ export default class KeyBilgiCommand extends Command {
         return;
       }
 
+      // compute days display: for used keys show remaining days until expiresAt; for unused show approx days
+      let daysDisplay = '—';
+      if (key.status === 'used' && key.expiresAt) {
+        const remainingMs = key.expiresAt.getTime() - Date.now();
+        const remainingDays = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+        daysDisplay = `${remainingDays}`;
+      } else {
+        const approxDays = (key.durationMonths ?? 0) * 30;
+        daysDisplay = `${approxDays}`;
+      }
+
       const embed = new EmbedBuilder()
         .setTitle(`Anahtar: ${key.key}`)
         .addFields(
           { name: 'Durum', value: `${key.status}`, inline: true },
-          { name: 'Ay', value: `${key.durationMonths}`, inline: true },
+          { name: 'Ay', value: `${key.durationMonths ?? 0} (${daysDisplay} gün)`, inline: true },
           { name: 'HWID', value: `${key.hwid ?? '—'}`, inline: true }
         )
         .setColor(0x57f287)
