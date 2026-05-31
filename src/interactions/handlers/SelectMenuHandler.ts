@@ -2,13 +2,14 @@ import { StringSelectMenuInteraction } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { ProductModel } from '../../database/models/Product';
 import { CustomIds } from '../../utils/constants';
+import { KeyModel } from '../../database/models/Key';
+import { getProductDescription, getProductPrice, getProductTitle } from '../../utils/productHelpers';
 
 export class SelectMenuHandler {
   constructor(private readonly client: BotClient) {}
 
   public async handle(interaction: StringSelectMenuInteraction): Promise<void> {
     const { customId } = interaction;
-import { KeyModel } from '../../database/models/Key';
 
     if (customId === CustomIds.PRODUCT_SELECT) {
       await this.handleProductSelect(interaction);
@@ -22,6 +23,17 @@ import { KeyModel } from '../../database/models/Key';
 
     if (customId === CustomIds.MODMAIL_START) {
       await this.handleModmailPanelSelect(interaction);
+      return;
+    }
+
+    if (customId === CustomIds.KEY_SELECT) {
+      await this.keySelect(interaction);
+      return;
+    }
+
+    if (customId === CustomIds.KEY_CANCEL_SELECT) {
+      await this.keyCancelSelect(interaction);
+      return;
     }
   }
 
@@ -29,8 +41,6 @@ import { KeyModel } from '../../database/models/Key';
     const category = interaction.values[0] as 'purchase' | 'support' | 'inquiry';
 
     if (!interaction.guild || !interaction.member) {
-    if (customId === CustomIds.KEY_SELECT) return this.keySelect(interaction);
-    if (customId === CustomIds.KEY_CANCEL_SELECT) return this.keyCancelSelect(interaction);
       await interaction.reply({ content: 'Geçersiz işlem.', ephemeral: true });
       return;
     }
@@ -44,29 +54,29 @@ import { KeyModel } from '../../database/models/Key';
     });
   }
 
-  private async handleProductSelect(interaction: StringSelectMenuInteraction): Promise<void> {
-    try {
-      if (!interaction.guild || !interaction.member) {
-        await interaction.reply({ content: 'Geçersiz işlem.', ephemeral: true });
-        return;
-      }
-  async keySelect(interaction: StringSelectMenuInteraction) {
+  private async keySelect(interaction: StringSelectMenuInteraction): Promise<void> {
     const value = interaction.values[0];
     const key = await KeyModel.findOne({ key: value }).exec();
-    if (!key) return interaction.update({ content: 'Anahtar bulunamadı.', components: [] });
+    if (!key) {
+      await interaction.update({ content: 'Anahtar bulunamadı.', components: [] });
+      return;
+    }
 
-    const addId = CustomIds.KEY_ADD_MONTH + ':' + key.key;
-    const remId = CustomIds.KEY_REMOVE_MONTH + ':' + key.key;
-
-    const buttons = [{ type: 2, style: 1, label: '+1 Ay', custom_id: addId }, { type: 2, style: 2, label: '-1 Ay', custom_id: remId }];
-
-    return interaction.update({ content: `Anahtar: ${key.key}\nDurum: ${key.status}\nAy: ${key.durationMonths}`, components: [] }).catch(() => null);
+    try {
+      await interaction.update({ content: `Anahtar: ${key.key}\nDurum: ${key.status}\nAy: ${key.durationMonths}`, components: [] });
+    } catch {
+      // ignore
+    }
+    return;
   }
 
-  async keyCancelSelect(interaction: StringSelectMenuInteraction) {
+  private async keyCancelSelect(interaction: StringSelectMenuInteraction): Promise<void> {
     const value = interaction.values[0];
     const key = await KeyModel.findOne({ key: value }).exec();
-    if (!key) return interaction.update({ content: 'Anahtar bulunamadı.', components: [] });
+    if (!key) {
+      await interaction.update({ content: 'Anahtar bulunamadı.', components: [] });
+      return;
+    }
 
     const confirmId = CustomIds.KEY_CONFIRM_CANCEL + ':' + key.key;
     const abortId = CustomIds.KEY_CANCEL_ABORT + ':' + key.key;
@@ -81,8 +91,18 @@ import { KeyModel } from '../../database/models/Key';
       },
     ];
 
-    return interaction.update({ content: `Bu anahtarı iptal etmeyi onaylıyor musunuz? ${key.key}`, components: components as any });
+    await interaction.update({ content: `Bu anahtarı iptal etmeyi onaylıyor musunuz? ${key.key}`, components: components as any });
+    return;
   }
+
+  private async handleProductSelect(interaction: StringSelectMenuInteraction): Promise<void> {
+    try {
+      if (!interaction.guild || !interaction.member) {
+        await interaction.reply({ content: 'Geçersiz işlem.', ephemeral: true });
+        return;
+      }
+
+      await interaction.deferUpdate();
 
       const productId = interaction.values[0];
       const product = await ProductModel.findById(productId);
@@ -94,8 +114,6 @@ import { KeyModel } from '../../database/models/Key';
         });
         return;
       }
-
-      await interaction.deferUpdate();
 
       const member = await interaction.guild.members.fetch(interaction.user.id);
       const ticket = await this.client.modmail.openTicketForPurchase(member.user, {

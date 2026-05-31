@@ -203,9 +203,15 @@ export class ButtonHandler {
     const parts = interaction.customId.split(':');
     const keyStr = parts[1] ?? parts.slice(-1)[0];
     const key = await KeyModel.findOne({ key: keyStr }).exec();
-    if (!key) return interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+    if (!key) {
+      await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+      return;
+    }
 
-    if (key.status === 'expired') return interaction.reply({ content: 'Anahtar süresi dolmuş.', ephemeral: true });
+    if (key.status === 'expired') {
+      await interaction.reply({ content: 'Anahtar süresi dolmuş.', ephemeral: true });
+      return;
+    }
 
     if (key.status === 'used' && key.expiresAt) {
       key.expiresAt = new Date(key.expiresAt.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -213,15 +219,18 @@ export class ButtonHandler {
       key.durationMonths = key.durationMonths + 1;
     }
     await key.save();
-    return interaction.reply({ content: 'Anahtar 1 ay uzatıldı.', ephemeral: true });
+    await interaction.reply({ content: 'Anahtar 1 ay uzatıldı.', ephemeral: true });
+    return;
   }
 
   private async keyRemoveMonth(interaction: ButtonInteraction): Promise<void> {
     const parts = interaction.customId.split(':');
     const keyStr = parts[1] ?? parts.slice(-1)[0];
     const key = await KeyModel.findOne({ key: keyStr }).exec();
-    if (!key) return interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
-
+    if (!key) {
+      await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+      return;
+    }
     if (key.status === 'used' && key.expiresAt) {
       key.expiresAt = new Date(key.expiresAt.getTime() - 30 * 24 * 60 * 60 * 1000);
       if (key.expiresAt.getTime() <= (key.activatedAt?.getTime() ?? 0)) {
@@ -231,22 +240,28 @@ export class ButtonHandler {
       key.durationMonths = Math.max(0, key.durationMonths - 1);
     }
     await key.save();
-    return interaction.reply({ content: 'Anahtar süresi 1 ay azaltıldı.', ephemeral: true });
+    await interaction.reply({ content: 'Anahtar süresi 1 ay azaltıldı.', ephemeral: true });
+    return;
   }
 
   private async keyConfirmCancel(interaction: ButtonInteraction): Promise<void> {
     const parts = interaction.customId.split(':');
     const keyStr = parts[1] ?? parts.slice(-1)[0];
     const key = await KeyModel.findOne({ key: keyStr }).exec();
-    if (!key) return interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+    if (!key) {
+      await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+      return;
+    }
 
     key.status = 'expired';
     await key.save();
-    return interaction.update({ content: `Anahtar ${key.key} iptal edildi.`, components: [] });
+    await interaction.update({ content: `Anahtar ${key.key} iptal edildi.`, components: [] });
+    return;
   }
 
   private async keyAbortCancel(interaction: ButtonInteraction): Promise<void> {
-    return interaction.update({ content: 'İptal işlemi iptal edildi.', components: [] });
+    await interaction.update({ content: 'İptal işlemi iptal edildi.', components: [] });
+    return;
   }
 
   private async handleDeleteAllProductsCancel(interaction: ButtonInteraction): Promise<void> {

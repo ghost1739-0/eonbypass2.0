@@ -1,5 +1,4 @@
 import express from 'express';
-import bodyParser from 'body-parser';
 import { KeyModel } from '../database/models/Key';
 
 let server: any = null;
@@ -10,7 +9,7 @@ function daysToMs(days: number) {
 
 export async function startApiServer(port = 10000): Promise<void> {
   const app = express();
-  app.use(bodyParser.json());
+  app.use(express.json());
 
   app.post('/api/verify', async (req, res) => {
     const { key: keyString, hwid } = req.body as { key?: string; hwid?: string };
