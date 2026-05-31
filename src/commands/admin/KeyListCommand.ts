@@ -1,23 +1,13 @@
-import {
-  ChatInputCommandInteraction,
-  SlashCommandBuilder,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { Command } from '../../structures/Command';
 import { CommandOptions } from '../../types';
 import { KeyModel } from '../../database/models/Key';
-import { CustomIds } from '../../utils/constants';
 
 export default class KeyListCommand extends Command {
   public readonly options: CommandOptions = {
     adminOnly: true,
-    data: new SlashCommandBuilder()
-      .setName('keylist')
-      .setDescription('Lisans anahtarlarını listele (admin)')
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    data: new SlashCommandBuilder().setName('keylist').setDescription('Lisans anahtarlarını listele (admin)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     execute: async (interaction: ChatInputCommandInteraction, _client: BotClient) => {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
         await interaction.reply({ content: 'Yönetici izni gerekli.', ephemeral: true });
@@ -30,13 +20,14 @@ export default class KeyListCommand extends Command {
         return;
       }
 
-      const options = keys.map((k) => ({ label: `${k.key} (${k.status})`, value: k.key, description: `Ay: ${k.durationMonths}` }));
+      const embed = new EmbedBuilder().setTitle('Lisans Anahtarları').setColor(0x57f287).setTimestamp();
 
-      const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-        new StringSelectMenuBuilder().setCustomId(CustomIds.KEY_SELECT).setPlaceholder('Anahtar seç').addOptions(options)
-      );
+      for (const k of keys) {
+        const expires = k.expiresAt ? `Expires: ${k.expiresAt.toISOString().split('T')[0]}` : 'No expiry';
+        embed.addFields({ name: k.key, value: `Status: ${k.status} • Months: ${k.durationMonths} • ${expires}` });
+      }
 
-      await interaction.reply({ content: 'Anahtar seçin:', components: [row], ephemeral: true });
+      await interaction.reply({ embeds: [embed], ephemeral: true });
     },
   };
 }
