@@ -125,11 +125,15 @@ export class ModalHandler {
 
       console.log('[ModalHandler] handleAdjustModal called for key=', keyStr, 'deltaRaw=', deltaRaw);
 
-      const delta = parseInt(deltaRaw, 10);
-      if (Number.isNaN(delta)) {
-        await interaction.reply({ content: 'Geçersiz sayı girdiniz.', ephemeral: true });
+      // parse input: allow units d (days), w (weeks), m (months). default unit = months
+      const match = String(deltaRaw).trim().match(/^([+-]?\d+)\s*(d|day|days|w|week|weeks|m|mon|month|months)?$/i);
+      if (!match) {
+        await interaction.reply({ content: 'Geçersiz format. Örnekler: 3m, -2m, 10d, -1w', ephemeral: true });
         return;
       }
+
+      const num = parseInt(match[1], 10);
+      const unit = (match[2] || 'm').toLowerCase();
 
       const key = await KeyModel.findOne({ key: keyStr }).exec();
       console.log('[ModalHandler] DB findOne result for key=', keyStr, ' =>', !!key);
@@ -137,16 +141,28 @@ export class ModalHandler {
         await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
         return;
       }
+      // compute msDelta and monthsDelta
+      let msDelta = 0;
+      let monthsDelta = 0;
+      if (unit.startsWith('d')) msDelta = num * 24 * 60 * 60 * 1000;
+      else if (unit.startsWith('w')) msDelta = num * 7 * 24 * 60 * 60 * 1000;
+      else msDelta = num * MS_PER_MONTH; // months expressed in ms
 
-      if (key.status === 'used' && key.expiresAt && key.activatedAt) {
-        key.expiresAt = new Date(key.expiresAt.getTime() + delta * MS_PER_MONTH);
-        const months = Math.max(0, Math.round((key.expiresAt.getTime() - key.activatedAt.getTime()) / MS_PER_MONTH));
-        key.durationMonths = months;
-      } else {
-        key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + delta);
-        if (key.status === 'used' && key.activatedAt) {
-          key.expiresAt = new Date((key.activatedAt?.getTime() ?? Date.now()) + (key.durationMonths ?? 0) * MS_PER_MONTH);
+      if (unit.startsWith('m')) monthsDelta = num;
+      else monthsDelta = Math.round(msDelta / MS_PER_MONTH);
+
+      console.log('[ModalHandler] parsed adjust num=', num, 'unit=', unit, 'msDelta=', msDelta, 'monthsDelta=', monthsDelta);
+
+      if (key.status === 'used' && key.expiresAt) {
+        // extend or reduce expiresAt by msDelta
+        key.expiresAt = new Date((key.expiresAt?.getTime() ?? Date.now()) + msDelta);
+        if (key.activatedAt) {
+          const months = Math.max(0, Math.round((key.expiresAt.getTime() - key.activatedAt.getTime()) / MS_PER_MONTH));
+          key.durationMonths = months;
         }
+      } else {
+        // unused key: adjust durationMonths by monthsDelta
+        key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + monthsDelta);
       }
 
       if ((key.durationMonths ?? 0) <= 0 && key.status === 'used') {

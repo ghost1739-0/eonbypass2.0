@@ -141,9 +141,9 @@ export class ButtonHandler {
 
     const input = new TextInputBuilder()
       .setCustomId('months_delta')
-      .setLabel('Kaç ay ekle/çıkar? (pozitif ekle, negatif çıkar)')
+      .setLabel('Kaç ekle/çıkar? (sayı + birim: d,gün; w,hafta; m,ay)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Örnek: 3 veya -2')
+      .setPlaceholder('Örnek: 3m, -2m, 10d, -1w, 5 (varsayılan: ay)')
       .setRequired(true);
 
     modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
