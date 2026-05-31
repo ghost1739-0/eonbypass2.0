@@ -216,24 +216,18 @@ export class ModalHandler {
         return;
       }
 
+      // Use fixed-length calculations: 1m = 30d, 1w = 7d, 1d = 1d. No calendar-month arithmetic.
+      const multiplier = unit === 'm' ? 30 : unit === 'w' ? 7 : 1;
+      const daysDelta = val * multiplier;
+      const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
       if (key.status === 'unused') {
-        if (unit === 'm') {
-          key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + val);
-        } else {
-          // convert days/weeks to approximate months (30d/month)
-          const days = unit === 'd' ? val : val * 7;
-          const monthsDelta = Math.round(days / 30);
-          key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + monthsDelta);
-        }
+        // convert daysDelta to months (30 days per month) for durationMonths
+        const monthsDelta = Math.round(daysDelta / 30);
+        key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + monthsDelta);
       } else if (key.status === 'used') {
         const base = key.expiresAt ? new Date(key.expiresAt) : key.activatedAt ? new Date(key.activatedAt) : new Date();
-        if (unit === 'm') {
-          base.setMonth(base.getMonth() + val);
-        } else {
-          const days = unit === 'd' ? val : val * 7;
-          base.setDate(base.getDate() + days);
-        }
-        key.expiresAt = base;
+        key.expiresAt = new Date(base.getTime() + daysDelta * MS_PER_DAY);
         if (key.activatedAt) {
           const months = Math.max(0, Math.round((key.expiresAt.getTime() - key.activatedAt.getTime()) / (30 * 24 * 60 * 60 * 1000)));
           key.durationMonths = months;
