@@ -198,12 +198,16 @@ export class ModalHandler {
       const parts = interaction.customId.split(':');
       const keyStr = parts[parts.length - 1];
 
-      const raw = interaction.fields.getTextInputValue('ay_input');
-      const aySayisi = parseInt(raw, 10);
-      if (Number.isNaN(aySayisi)) {
-        await interaction.editReply({ content: 'Geçersiz sayı girdiniz. Lütfen tam sayı girin.' });
+      const raw = interaction.fields.getTextInputValue('ay_input').trim();
+
+      // parse pattern: integer with optional unit (m,d,w). default unit = m
+      const m = raw.match(/^([+-]?\d+)\s*([mdwMDW])?$/);
+      if (!m) {
+        await interaction.editReply({ content: 'Geçersiz giriş. Örnek: 5m, -2m, 10d, -1w, 5' });
         return;
       }
+      const val = parseInt(m[1], 10);
+      const unit = (m[2] || 'm').toLowerCase();
 
       const key = await KeyModel.findOne({ key: keyStr }).exec();
       if (!key) {
@@ -212,14 +216,23 @@ export class ModalHandler {
       }
 
       if (key.status === 'unused') {
-        // adjust durationMonths
-        key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + aySayisi);
+        if (unit === 'm') {
+          key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + val);
+        } else {
+          // convert days/weeks to approximate months (30d/month)
+          const days = unit === 'd' ? val : val * 7;
+          const monthsDelta = Math.round(days / 30);
+          key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + monthsDelta);
+        }
       } else if (key.status === 'used') {
-        // adjust expiresAt by months using Date.setMonth
         const base = key.expiresAt ? new Date(key.expiresAt) : key.activatedAt ? new Date(key.activatedAt) : new Date();
-        base.setMonth(base.getMonth() + aySayisi);
+        if (unit === 'm') {
+          base.setMonth(base.getMonth() + val);
+        } else {
+          const days = unit === 'd' ? val : val * 7;
+          base.setDate(base.getDate() + days);
+        }
         key.expiresAt = base;
-        // optionally recompute durationMonths if activatedAt exists
         if (key.activatedAt) {
           const months = Math.max(0, Math.round((key.expiresAt.getTime() - key.activatedAt.getTime()) / (30 * 24 * 60 * 60 * 1000)));
           key.durationMonths = months;

@@ -143,7 +143,7 @@ export class ButtonHandler {
 
     const input = new TextInputBuilder()
       .setCustomId('ay_input')
-      .setLabel('Eklenecek/Çıkarılacak Ay (Örn: 5 veya -3)')
+      .setLabel('Eklenecek/Çıkarılacak süre (Örn: 5m, -2m, 10d, -1w, 5)')
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
