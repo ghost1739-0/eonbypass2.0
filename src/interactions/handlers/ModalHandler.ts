@@ -167,8 +167,22 @@ export class ModalHandler {
           key.durationMonths = months;
         }
       } else {
-        // unused key: adjust durationMonths by monthsDelta
-        key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + monthsDelta);
+        // unused key: if unit is months, adjust durationMonths; if days/weeks, adjust an expiresAt relative to now
+        if (unit.startsWith('m')) {
+          key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + monthsDelta);
+        } else {
+          // add msDelta to expiresAt (or now if not present)
+          const base = key.expiresAt ? new Date(key.expiresAt) : new Date();
+          key.expiresAt = new Date(base.getTime() + msDelta);
+          // update durationMonths approximately relative to now
+          if (key.activatedAt) {
+            const months = Math.max(0, Math.round((key.expiresAt.getTime() - key.activatedAt.getTime()) / MS_PER_MONTH));
+            key.durationMonths = months;
+          } else {
+            const months = Math.max(0, Math.round((key.expiresAt.getTime() - Date.now()) / MS_PER_MONTH));
+            key.durationMonths = months;
+          }
+        }
       }
 
       if ((key.durationMonths ?? 0) <= 0 && key.status === 'used') {
@@ -220,10 +234,15 @@ export class ModalHandler {
         if (unit === 'm') {
           key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + val);
         } else {
-          // convert days/weeks to approximate months (30d/month)
+          // days/weeks: add to expiresAt relative to now (preserve existing expiresAt if present)
           const days = unit === 'd' ? val : val * 7;
-          const monthsDelta = Math.round(days / 30);
-          key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + monthsDelta);
+          const base = key.expiresAt ? new Date(key.expiresAt) : new Date();
+          base.setDate(base.getDate() + days);
+          key.expiresAt = base;
+          // adjust durationMonths approx relative to now or activatedAt
+          const ref = key.activatedAt ? key.activatedAt.getTime() : Date.now();
+          const months = Math.max(0, Math.round((key.expiresAt.getTime() - ref) / MS_PER_MONTH));
+          key.durationMonths = months;
         }
       } else if (key.status === 'used') {
         const base = key.expiresAt ? new Date(key.expiresAt) : key.activatedAt ? new Date(key.activatedAt) : new Date();
