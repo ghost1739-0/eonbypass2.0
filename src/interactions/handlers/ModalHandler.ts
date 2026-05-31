@@ -159,8 +159,9 @@ export class ModalHandler {
       await interaction.reply({ content: `Anahtar süresi güncellendi. Yeni ay: ${key.durationMonths}`, ephemeral: true });
     } catch (err) {
       console.error('[ModalHandler] handleAdjustModal error', err);
+      const msg = err instanceof Error ? err.message : 'unknown error';
       try {
-        await interaction.reply({ content: 'Bir hata oluştu. Lütfen tekrar deneyin.', ephemeral: true });
+        await interaction.reply({ content: `Bir hata oluştu: ${msg}`, ephemeral: true });
       } catch {
         /* ignore */
       }
