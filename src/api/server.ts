@@ -7,6 +7,14 @@ function daysToMs(days: number) {
   return days * 24 * 60 * 60 * 1000;
 }
 
+function formatDateDMY(d?: Date | null) {
+  if (!d) return null;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = String(d.getFullYear());
+  return `${day}-${month}-${year}`;
+}
+
 export async function startApiServer(port?: number): Promise<void> {
   const listenPort = Number(process.env.PORT || port || 10000);
   const app = express();
@@ -42,7 +50,7 @@ export async function startApiServer(port?: number): Promise<void> {
         return res.json({ success: false, message: 'Key has expired' });
       }
 
-      return res.json({ success: true, message: 'Login successful', expiresAt: key.expiresAt });
+      return res.json({ success: true, message: 'Login successful', expiresAt: formatDateDMY(key.expiresAt) });
     }
 
     if (key.status === 'unused') {
@@ -54,7 +62,7 @@ export async function startApiServer(port?: number): Promise<void> {
       const ms = key.durationMonths * 30 * 24 * 60 * 60 * 1000;
       key.expiresAt = new Date(now.getTime() + ms);
       await key.save();
-      return res.json({ success: true, message: 'Key activated successfully', expiresAt: key.expiresAt });
+      return res.json({ success: true, message: 'Key activated successfully', expiresAt: formatDateDMY(key.expiresAt) });
     }
 
     return res.json({ success: false, message: 'Invalid Key' });
