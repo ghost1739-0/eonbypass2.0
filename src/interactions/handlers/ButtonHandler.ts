@@ -136,23 +136,25 @@ export class ButtonHandler {
   private async showAdjustModal(interaction: ButtonInteraction): Promise<void> {
     const parts = interaction.customId.split(':');
     const keyStr = parts[parts.length - 1];
-
-    const modal = new ModalBuilder().setCustomId(`${CustomIds.MODAL_ADJUST_MONTHS}:${keyStr}`).setTitle('Anahtar Süresini Değiştir');
+    // Build modal with the exact ID 'sure_degistir_modal' plus the key so submit can identify the key.
+    // Per requirement: DO NOT call deferReply() or reply() here — immediately show modal.
+    const modalCustomId = `sure_degistir_modal:${keyStr}`;
+    const modal = new ModalBuilder().setCustomId(modalCustomId).setTitle('Süre Değiştir');
 
     const input = new TextInputBuilder()
-      .setCustomId('months_delta')
-      .setLabel('Kaç ekle/çıkar? (sayı + birim: d,gün; w,hafta; m,ay)')
+      .setCustomId('ay_input')
+      .setLabel('Eklenecek/Çıkarılacak Ay (Örn: 5 veya -3)')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Örnek: 3m, -2m, 10d, -1w, 5 (varsayılan: ay)')
       .setRequired(true);
 
     modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
 
     try {
-      console.log('[ButtonHandler] showAdjustModal opening modal for key=', keyStr);
+      console.log('[ButtonHandler] showAdjustModal showing modal id=', modalCustomId);
       await interaction.showModal(modal);
     } catch (err) {
       console.error('[ButtonHandler] showAdjustModal error', err);
+      // Do not defer/reply except on error — notify user the modal couldn't open.
       try {
         await interaction.reply({ content: 'Bir hata oluştu: modal açılamadı.', ephemeral: true });
       } catch {

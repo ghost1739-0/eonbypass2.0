@@ -29,6 +29,11 @@ export class ModalHandler {
       await this.handleAdjustModal(interaction);
       return;
     }
+    // handle new modal id per spec: 'sure_degistir_modal'
+    if (customId.startsWith('sure_degistir_modal:')) {
+      await this.handleSureDegistirModal(interaction);
+      return;
+    }
   }
 
   private async handleLicenseModal(interaction: ModalSubmitInteraction): Promise<void> {
@@ -178,6 +183,67 @@ export class ModalHandler {
       const msg = err instanceof Error ? err.message : 'unknown error';
       try {
         await interaction.reply({ content: `Bir hata oluştu: ${msg}`, ephemeral: true });
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  // New handler implementing the exact spec requested: modal id 'sure_degistir_modal'
+  private async handleSureDegistirModal(interaction: ModalSubmitInteraction): Promise<void> {
+    try {
+      // Per spec: deferReply here
+      await interaction.deferReply({ ephemeral: true });
+
+      const parts = interaction.customId.split(':');
+      const keyStr = parts[parts.length - 1];
+
+      const raw = interaction.fields.getTextInputValue('ay_input');
+      const aySayisi = parseInt(raw, 10);
+      if (Number.isNaN(aySayisi)) {
+        await interaction.editReply({ content: 'Geçersiz sayı girdiniz. Lütfen tam sayı girin.' });
+        return;
+      }
+
+      const key = await KeyModel.findOne({ key: keyStr }).exec();
+      if (!key) {
+        await interaction.editReply({ content: 'Anahtar bulunamadı.' });
+        return;
+      }
+
+      if (key.status === 'unused') {
+        // adjust durationMonths
+        key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + aySayisi);
+      } else if (key.status === 'used') {
+        // adjust expiresAt by months using Date.setMonth
+        const base = key.expiresAt ? new Date(key.expiresAt) : key.activatedAt ? new Date(key.activatedAt) : new Date();
+        base.setMonth(base.getMonth() + aySayisi);
+        key.expiresAt = base;
+        // optionally recompute durationMonths if activatedAt exists
+        if (key.activatedAt) {
+          const months = Math.max(0, Math.round((key.expiresAt.getTime() - key.activatedAt.getTime()) / (30 * 24 * 60 * 60 * 1000)));
+          key.durationMonths = months;
+        }
+      }
+
+      await key.save();
+
+      const embed = new EmbedBuilder()
+        .setTitle('Anahtar Süresi Güncellendi')
+        .setColor(0x57f287)
+        .addFields(
+          { name: 'Anahtar', value: key.key },
+          { name: 'Durum', value: `${key.status}`, inline: true },
+          { name: 'Ay', value: `${key.durationMonths ?? '—'}`, inline: true },
+          { name: 'Bitiş', value: key.expiresAt ? key.expiresAt.toISOString() : '—', inline: false }
+        )
+        .setTimestamp();
+
+      await interaction.editReply({ embeds: [embed], content: '' });
+    } catch (err) {
+      console.error('[ModalHandler] handleSureDegistirModal error', err);
+      try {
+        await interaction.editReply({ content: 'Bir hata oluştu. Lütfen tekrar deneyin.' });
       } catch {
         /* ignore */
       }
