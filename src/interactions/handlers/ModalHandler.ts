@@ -16,6 +16,7 @@ export class ModalHandler {
 
   public async handle(interaction: ModalSubmitInteraction): Promise<void> {
     const { customId } = interaction;
+    console.log('[ModalHandler] handle called customId=', customId, 'deferred=', interaction.deferred, 'replied=', interaction.replied);
 
     if (customId.startsWith(`${CustomIds.MODAL_LICENSE}:`)) {
       await this.handleLicenseModal(interaction);

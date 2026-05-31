@@ -23,6 +23,7 @@ export class ButtonHandler {
 
   public async handle(interaction: ButtonInteraction): Promise<void> {
     const { customId } = interaction;
+    console.log('[ButtonHandler] handle called customId=', customId, 'deferred=', interaction.deferred, 'replied=', interaction.replied);
 
     if (customId === CustomIds.TICKET_PURCHASE) {
       await this.handlePurchaseButton(interaction);
