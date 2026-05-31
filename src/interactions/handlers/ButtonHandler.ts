@@ -148,7 +148,16 @@ export class ButtonHandler {
 
     modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
 
-    await interaction.showModal(modal);
+    try {
+      await interaction.showModal(modal);
+    } catch (err) {
+      console.error('[ButtonHandler] showAdjustModal error', err);
+      try {
+        await interaction.reply({ content: 'Bir hata oluştu: modal açılamadı.', ephemeral: true });
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   private async showLicenseModal(
