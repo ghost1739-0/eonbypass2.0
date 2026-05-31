@@ -144,7 +144,8 @@ export class ButtonHandler {
 
     const input = new TextInputBuilder()
       .setCustomId('ay_input')
-      .setLabel('Eklenecek/Çıkarılacak süre (Örn: 5m, -2m, 10d, -1w, 5)')
+      .setLabel('Süre (Örn: 5m, 10d, 2w, -3)')
+      .setPlaceholder('Örn: 5m = 5 ay, 10d = 10 gün, 2w = 2 hafta')
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
