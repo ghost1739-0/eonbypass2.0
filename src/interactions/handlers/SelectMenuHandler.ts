@@ -62,8 +62,16 @@ export class SelectMenuHandler {
       return;
     }
 
+    const addId = `${CustomIds.KEY_ADD_MONTH}:${key.key}`;
+    const remId = `${CustomIds.KEY_REMOVE_MONTH}:${key.key}`;
+
+    const row = new (require('discord.js').ActionRowBuilder)().addComponents(
+      new (require('discord.js').ButtonBuilder)().setCustomId(addId).setLabel('+1 Ay').setStyle(require('discord.js').ButtonStyle.Primary),
+      new (require('discord.js').ButtonBuilder)().setCustomId(remId).setLabel('-1 Ay').setStyle(require('discord.js').ButtonStyle.Secondary)
+    );
+
     try {
-      await interaction.update({ content: `Anahtar: ${key.key}\nDurum: ${key.status}\nAy: ${key.durationMonths}`, components: [] });
+      await interaction.update({ content: `Anahtar: ${key.key}\nDurum: ${key.status}\nAy: ${key.durationMonths}`, components: [row as any] });
     } catch {
       // ignore
     }
@@ -78,20 +86,15 @@ export class SelectMenuHandler {
       return;
     }
 
-    const confirmId = CustomIds.KEY_CONFIRM_CANCEL + ':' + key.key;
-    const abortId = CustomIds.KEY_CANCEL_ABORT + ':' + key.key;
+    const confirmId = `${CustomIds.KEY_CONFIRM_CANCEL}:${key.key}`;
+    const abortId = `${CustomIds.KEY_CANCEL_ABORT}:${key.key}`;
 
-    const components = [
-      {
-        type: 1,
-        components: [
-          { type: 2, style: 4, label: 'EVET - İptal Et', custom_id: confirmId },
-          { type: 2, style: 2, label: 'Vazgeç', custom_id: abortId },
-        ],
-      },
-    ];
+    const row = new (require('discord.js').ActionRowBuilder)().addComponents(
+      new (require('discord.js').ButtonBuilder)().setCustomId(confirmId).setLabel('EVET - İptal Et').setStyle(require('discord.js').ButtonStyle.Danger),
+      new (require('discord.js').ButtonBuilder)().setCustomId(abortId).setLabel('Vazgeç').setStyle(require('discord.js').ButtonStyle.Secondary)
+    );
 
-    await interaction.update({ content: `Bu anahtarı iptal etmeyi onaylıyor musunuz? ${key.key}`, components: components as any });
+    await interaction.update({ content: `Bu anahtarı iptal etmeyi onaylıyor musunuz? ${key.key}`, components: [row as any] });
     return;
   }
 

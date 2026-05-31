@@ -201,7 +201,7 @@ export class ButtonHandler {
 
   private async keyAddMonth(interaction: ButtonInteraction): Promise<void> {
     const parts = interaction.customId.split(':');
-    const keyStr = parts[1] ?? parts.slice(-1)[0];
+    const keyStr = parts[parts.length - 1];
     const key = await KeyModel.findOne({ key: keyStr }).exec();
     if (!key) {
       await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
@@ -225,7 +225,7 @@ export class ButtonHandler {
 
   private async keyRemoveMonth(interaction: ButtonInteraction): Promise<void> {
     const parts = interaction.customId.split(':');
-    const keyStr = parts[1] ?? parts.slice(-1)[0];
+    const keyStr = parts[parts.length - 1];
     const key = await KeyModel.findOne({ key: keyStr }).exec();
     if (!key) {
       await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
@@ -246,7 +246,7 @@ export class ButtonHandler {
 
   private async keyConfirmCancel(interaction: ButtonInteraction): Promise<void> {
     const parts = interaction.customId.split(':');
-    const keyStr = parts[1] ?? parts.slice(-1)[0];
+    const keyStr = parts[parts.length - 1];
     const key = await KeyModel.findOne({ key: keyStr }).exec();
     if (!key) {
       await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
