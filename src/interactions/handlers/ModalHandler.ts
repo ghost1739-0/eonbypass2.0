@@ -1,4 +1,5 @@
 import { ModalSubmitInteraction, EmbedBuilder } from 'discord.js';
+import { TextInputStyle } from 'discord.js';
 import type { TextBasedChannel } from 'discord.js';
 import { BotClient } from '../../client/BotClient';
 import { FeedbackModel } from '../../database/models/Feedback';
@@ -6,6 +7,9 @@ import { TicketModel } from '../../database/models/Ticket';
 import { CustomIds } from '../../utils/constants';
 import { createTicketChannel, resolveOpenTicket } from '../../utils/ticketHelpers';
 import { config } from '../../config/config';
+import { KeyModel } from '../../database/models/Key';
+
+const MS_PER_MONTH = 30 * 24 * 60 * 60 * 1000;
 
 export class ModalHandler {
   constructor(private readonly client: BotClient) {}
@@ -20,6 +24,10 @@ export class ModalHandler {
 
     if (customId === CustomIds.MODAL_FEEDBACK) {
       await this.handleFeedbackModal(interaction);
+    }
+    if (customId.startsWith(`${CustomIds.MODAL_ADJUST_MONTHS}:`)) {
+      await this.handleAdjustModal(interaction);
+      return;
     }
   }
 
@@ -107,5 +115,46 @@ export class ModalHandler {
       // eslint-disable-next-line no-console
       console.error('[Feedback] failed to deliver notification', err);
     }
+  }
+
+  private async handleAdjustModal(interaction: ModalSubmitInteraction): Promise<void> {
+    const parts = interaction.customId.split(':');
+    const keyStr = parts[parts.length - 1];
+    const deltaRaw = interaction.fields.getTextInputValue('months_delta');
+
+    const delta = parseInt(deltaRaw, 10);
+    if (Number.isNaN(delta)) {
+      await interaction.reply({ content: 'Geçersiz sayı girdiniz.', ephemeral: true });
+      return;
+    }
+
+    const key = await KeyModel.findOne({ key: keyStr }).exec();
+    if (!key) {
+      await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+      return;
+    }
+
+    if (key.status === 'used' && key.expiresAt && key.activatedAt) {
+      key.expiresAt = new Date(key.expiresAt.getTime() + delta * MS_PER_MONTH);
+      // recompute durationMonths from activatedAt -> expiresAt
+      const months = Math.max(0, Math.round((key.expiresAt.getTime() - key.activatedAt.getTime()) / MS_PER_MONTH));
+      key.durationMonths = months;
+    } else {
+      // unused or missing activatedAt: just adjust durationMonths
+      key.durationMonths = Math.max(0, (key.durationMonths ?? 0) + delta);
+      if (key.status === 'used' && key.activatedAt) {
+        // if used but no expiresAt, set expiresAt
+        key.expiresAt = new Date((key.activatedAt?.getTime() ?? Date.now()) + (key.durationMonths ?? 0) * MS_PER_MONTH);
+      }
+    }
+
+    // if durationMonths reaches 0 and status used, expire key
+    if ((key.durationMonths ?? 0) <= 0 && key.status === 'used') {
+      key.status = 'expired';
+    }
+
+    await key.save();
+
+    await interaction.reply({ content: `Anahtar süresi güncellendi. Yeni ay: ${key.durationMonths}`, ephemeral: true });
   }
 }

@@ -18,6 +18,8 @@ export const CustomIds = {
   KEY_REMOVE_MONTH: 'key:remove_month',
   KEY_CONFIRM_CANCEL: 'key:confirm_cancel',
   KEY_CANCEL_ABORT: 'key:cancel_abort',
+  KEY_ADJUST_MONTHS: 'key:adjust_months',
+  MODAL_ADJUST_MONTHS: 'modal:adjust_months',
 } as const;
 
 export type TicketType = 'purchase' | 'support' | 'inquiry';

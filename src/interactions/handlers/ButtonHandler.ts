@@ -77,6 +77,10 @@ export class ButtonHandler {
       await this.keyAbortCancel(interaction);
       return;
     }
+    if (customId.startsWith(`${CustomIds.KEY_ADJUST_MONTHS}:`) || customId.startsWith(`${CustomIds.KEY_ADJUST_MONTHS}`)) {
+      await this.showAdjustModal(interaction);
+      return;
+    }
   }
 
   private async handlePurchaseButton(interaction: ButtonInteraction): Promise<void> {
@@ -127,6 +131,24 @@ export class ButtonHandler {
       components: [row],
       ephemeral: true,
     });
+  }
+
+  private async showAdjustModal(interaction: ButtonInteraction): Promise<void> {
+    const parts = interaction.customId.split(':');
+    const keyStr = parts[parts.length - 1];
+
+    const modal = new ModalBuilder().setCustomId(`${CustomIds.MODAL_ADJUST_MONTHS}:${keyStr}`).setTitle('Anahtar Süresini Değiştir');
+
+    const input = new TextInputBuilder()
+      .setCustomId('months_delta')
+      .setLabel('Kaç ay ekle/çıkar? (pozitif ekle, negatif çıkar)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Örnek: 3 veya -2')
+      .setRequired(true);
+
+    modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
+
+    await interaction.showModal(modal);
   }
 
   private async showLicenseModal(

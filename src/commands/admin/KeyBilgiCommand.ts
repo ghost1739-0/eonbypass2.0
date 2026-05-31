@@ -39,10 +39,12 @@ export default class KeyBilgiCommand extends Command {
       const addId = `${CustomIds.KEY_ADD_MONTH}:${key.key}`;
       const remId = `${CustomIds.KEY_REMOVE_MONTH}:${key.key}`;
       const cancelId = `${CustomIds.KEY_CONFIRM_CANCEL}:${key.key}`;
+      const adjustId = `${CustomIds.KEY_ADJUST_MONTHS}:${key.key}`;
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder().setCustomId(addId).setLabel('+1 Ay').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId(remId).setLabel('-1 Ay').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(adjustId).setLabel('Süre Değiştir').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(cancelId).setLabel('İptal Et').setStyle(ButtonStyle.Danger)
       );
 

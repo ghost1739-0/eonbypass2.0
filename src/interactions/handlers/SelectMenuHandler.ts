@@ -64,10 +64,12 @@ export class SelectMenuHandler {
 
     const addId = `${CustomIds.KEY_ADD_MONTH}:${key.key}`;
     const remId = `${CustomIds.KEY_REMOVE_MONTH}:${key.key}`;
+    const adjustId = `${CustomIds.KEY_ADJUST_MONTHS}:${key.key}`;
 
     const row = new (require('discord.js').ActionRowBuilder)().addComponents(
       new (require('discord.js').ButtonBuilder)().setCustomId(addId).setLabel('+1 Ay').setStyle(require('discord.js').ButtonStyle.Primary),
-      new (require('discord.js').ButtonBuilder)().setCustomId(remId).setLabel('-1 Ay').setStyle(require('discord.js').ButtonStyle.Secondary)
+      new (require('discord.js').ButtonBuilder)().setCustomId(remId).setLabel('-1 Ay').setStyle(require('discord.js').ButtonStyle.Secondary),
+      new (require('discord.js').ButtonBuilder)().setCustomId(adjustId).setLabel('Süre Değiştir').setStyle(require('discord.js').ButtonStyle.Secondary)
     );
 
     try {
