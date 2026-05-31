@@ -15,6 +15,17 @@ function formatDateDMY(d?: Date | null) {
   return `${day}-${month}-${year}`;
 }
 
+function buildExpiresPayload(d?: Date | null) {
+  if (!d) {
+    return { expiresAt: null, expiresAtIso: null };
+  }
+
+  return {
+    expiresAt: formatDateDMY(d),
+    expiresAtIso: d.toISOString(),
+  };
+}
+
 export async function startApiServer(port?: number): Promise<void> {
   const listenPort = Number(process.env.PORT || port || 10000);
   const app = express();
@@ -33,14 +44,7 @@ export async function startApiServer(port?: number): Promise<void> {
     const now = new Date();
 
     if (key.status === 'used') {
-      if (!key.hwid) {
-        // inconsistent: mark expired
-        key.status = 'expired';
-        await key.save().catch(() => undefined);
-        return res.json({ success: false, message: 'Key has expired' });
-      }
-
-      if (key.hwid !== hwid) {
+      if (key.hwid && key.hwid !== hwid) {
         return res.json({ success: false, message: 'HWID mismatch. Locked to another device' });
       }
 
@@ -50,19 +54,19 @@ export async function startApiServer(port?: number): Promise<void> {
         return res.json({ success: false, message: 'Key has expired' });
       }
 
-      return res.json({ success: true, message: 'Login successful', expiresAt: formatDateDMY(key.expiresAt) });
+      return res.json({ success: true, message: 'Login successful', ...buildExpiresPayload(key.expiresAt) });
     }
 
     if (key.status === 'unused') {
       // activate
       key.status = 'used';
-      key.hwid = hwid ?? null;
+      key.hwid = hwid ? hwid : null;
       key.activatedAt = now;
       // treat a month as 30 days
       const ms = key.durationMonths * 30 * 24 * 60 * 60 * 1000;
       key.expiresAt = new Date(now.getTime() + ms);
       await key.save();
-      return res.json({ success: true, message: 'Key activated successfully', expiresAt: formatDateDMY(key.expiresAt) });
+      return res.json({ success: true, message: 'Key activated successfully', ...buildExpiresPayload(key.expiresAt) });
     }
 
     return res.json({ success: false, message: 'Invalid Key' });
