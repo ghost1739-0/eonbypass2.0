@@ -3,6 +3,7 @@ import dns from 'dns';
 import { config } from './config/config';
 import { Database } from './database/connection';
 import { startHealthServer, stopHealthServer } from './utils/healthServer';
+import { startApiServer, stopApiServer } from './api/server';
 
 async function main(): Promise<void> {
   console.log('[Bot] Starting EonBypass 2.0...');
@@ -21,11 +22,15 @@ async function main(): Promise<void> {
 
   const client = new BotClient();
   await client.initialize();
+  // start the verification API
+  await startApiServer(10000).catch((e) => console.error('[API] start error', e));
+
   await client.start(config.token);
 
   const shutdown = async (signal: string) => {
     console.log(`[Bot] Received ${signal}, shutting down...`);
     client.destroy();
+    await stopApiServer().catch(() => undefined);
     await Database.disconnect();
     await stopHealthServer();
     process.exit(0);

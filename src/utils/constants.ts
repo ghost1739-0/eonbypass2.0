@@ -12,6 +12,12 @@ export const CustomIds = {
   MODAL_FEEDBACK: 'modal:feedback',
   MODMAIL_START: 'modmail:start',
   MODMAIL_CLOSE: 'modmail:close',
+  KEY_SELECT: 'key:select',
+  KEY_CANCEL_SELECT: 'key:cancel:select',
+  KEY_ADD_MONTH: 'key:add_month',
+  KEY_REMOVE_MONTH: 'key:remove_month',
+  KEY_CONFIRM_CANCEL: 'key:confirm_cancel',
+  KEY_CANCEL_ABORT: 'key:cancel_abort',
 } as const;
 
 export type TicketType = 'purchase' | 'support' | 'inquiry';

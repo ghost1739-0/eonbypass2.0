@@ -8,6 +8,7 @@ export class SelectMenuHandler {
 
   public async handle(interaction: StringSelectMenuInteraction): Promise<void> {
     const { customId } = interaction;
+import { KeyModel } from '../../database/models/Key';
 
     if (customId === CustomIds.PRODUCT_SELECT) {
       await this.handleProductSelect(interaction);
@@ -28,6 +29,8 @@ export class SelectMenuHandler {
     const category = interaction.values[0] as 'purchase' | 'support' | 'inquiry';
 
     if (!interaction.guild || !interaction.member) {
+    if (customId === CustomIds.KEY_SELECT) return this.keySelect(interaction);
+    if (customId === CustomIds.KEY_CANCEL_SELECT) return this.keyCancelSelect(interaction);
       await interaction.reply({ content: 'Geçersiz işlem.', ephemeral: true });
       return;
     }
@@ -47,6 +50,39 @@ export class SelectMenuHandler {
         await interaction.reply({ content: 'Geçersiz işlem.', ephemeral: true });
         return;
       }
+  async keySelect(interaction: StringSelectMenuInteraction) {
+    const value = interaction.values[0];
+    const key = await KeyModel.findOne({ key: value }).exec();
+    if (!key) return interaction.update({ content: 'Anahtar bulunamadı.', components: [] });
+
+    const addId = CustomIds.KEY_ADD_MONTH + ':' + key.key;
+    const remId = CustomIds.KEY_REMOVE_MONTH + ':' + key.key;
+
+    const buttons = [{ type: 2, style: 1, label: '+1 Ay', custom_id: addId }, { type: 2, style: 2, label: '-1 Ay', custom_id: remId }];
+
+    return interaction.update({ content: `Anahtar: ${key.key}\nDurum: ${key.status}\nAy: ${key.durationMonths}`, components: [] }).catch(() => null);
+  }
+
+  async keyCancelSelect(interaction: StringSelectMenuInteraction) {
+    const value = interaction.values[0];
+    const key = await KeyModel.findOne({ key: value }).exec();
+    if (!key) return interaction.update({ content: 'Anahtar bulunamadı.', components: [] });
+
+    const confirmId = CustomIds.KEY_CONFIRM_CANCEL + ':' + key.key;
+    const abortId = CustomIds.KEY_CANCEL_ABORT + ':' + key.key;
+
+    const components = [
+      {
+        type: 1,
+        components: [
+          { type: 2, style: 4, label: 'EVET - İptal Et', custom_id: confirmId },
+          { type: 2, style: 2, label: 'Vazgeç', custom_id: abortId },
+        ],
+      },
+    ];
+
+    return interaction.update({ content: `Bu anahtarı iptal etmeyi onaylıyor musunuz? ${key.key}`, components: components as any });
+  }
 
       const productId = interaction.values[0];
       const product = await ProductModel.findById(productId);

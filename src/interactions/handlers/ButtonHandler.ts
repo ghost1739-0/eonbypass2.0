@@ -13,6 +13,7 @@ import { BotClient } from '../../client/BotClient';
 import { config } from '../../config/config';
 import { ProductModel } from '../../database/models/Product';
 import { TicketModel } from '../../database/models/Ticket';
+import { KeyModel } from '../../database/models/Key';
 import { CustomIds } from '../../utils/constants';
 import { getProductDescription, getProductPrice, getProductTitle } from '../../utils/productHelpers';
 import { createTicketChannel, resolveOpenTicket } from '../../utils/ticketHelpers';
@@ -55,6 +56,26 @@ export class ButtonHandler {
 
     if (customId.startsWith(`${CustomIds.MODMAIL_CLOSE}:`)) {
       await this.client.modmail.closeTicket(interaction);
+    }
+
+    if (customId.startsWith(`${CustomIds.KEY_ADD_MONTH}:`) || customId.startsWith(`${CustomIds.KEY_ADD_MONTH}`)) {
+      await this.keyAddMonth(interaction);
+      return;
+    }
+
+    if (customId.startsWith(`${CustomIds.KEY_REMOVE_MONTH}:`) || customId.startsWith(`${CustomIds.KEY_REMOVE_MONTH}`)) {
+      await this.keyRemoveMonth(interaction);
+      return;
+    }
+
+    if (customId.startsWith(`${CustomIds.KEY_CONFIRM_CANCEL}:`) || customId.startsWith(`${CustomIds.KEY_CONFIRM_CANCEL}`)) {
+      await this.keyConfirmCancel(interaction);
+      return;
+    }
+
+    if (customId.startsWith(`${CustomIds.KEY_CANCEL_ABORT}:`) || customId.startsWith(`${CustomIds.KEY_CANCEL_ABORT}`)) {
+      await this.keyAbortCancel(interaction);
+      return;
     }
   }
 
@@ -176,6 +197,56 @@ export class ButtonHandler {
       embeds: [embed],
       components: [],
     });
+  }
+
+  private async keyAddMonth(interaction: ButtonInteraction): Promise<void> {
+    const parts = interaction.customId.split(':');
+    const keyStr = parts[1] ?? parts.slice(-1)[0];
+    const key = await KeyModel.findOne({ key: keyStr }).exec();
+    if (!key) return interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+
+    if (key.status === 'expired') return interaction.reply({ content: 'Anahtar süresi dolmuş.', ephemeral: true });
+
+    if (key.status === 'used' && key.expiresAt) {
+      key.expiresAt = new Date(key.expiresAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      key.durationMonths = key.durationMonths + 1;
+    }
+    await key.save();
+    return interaction.reply({ content: 'Anahtar 1 ay uzatıldı.', ephemeral: true });
+  }
+
+  private async keyRemoveMonth(interaction: ButtonInteraction): Promise<void> {
+    const parts = interaction.customId.split(':');
+    const keyStr = parts[1] ?? parts.slice(-1)[0];
+    const key = await KeyModel.findOne({ key: keyStr }).exec();
+    if (!key) return interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+
+    if (key.status === 'used' && key.expiresAt) {
+      key.expiresAt = new Date(key.expiresAt.getTime() - 30 * 24 * 60 * 60 * 1000);
+      if (key.expiresAt.getTime() <= (key.activatedAt?.getTime() ?? 0)) {
+        key.status = 'expired';
+      }
+    } else {
+      key.durationMonths = Math.max(0, key.durationMonths - 1);
+    }
+    await key.save();
+    return interaction.reply({ content: 'Anahtar süresi 1 ay azaltıldı.', ephemeral: true });
+  }
+
+  private async keyConfirmCancel(interaction: ButtonInteraction): Promise<void> {
+    const parts = interaction.customId.split(':');
+    const keyStr = parts[1] ?? parts.slice(-1)[0];
+    const key = await KeyModel.findOne({ key: keyStr }).exec();
+    if (!key) return interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
+
+    key.status = 'expired';
+    await key.save();
+    return interaction.update({ content: `Anahtar ${key.key} iptal edildi.`, components: [] });
+  }
+
+  private async keyAbortCancel(interaction: ButtonInteraction): Promise<void> {
+    return interaction.update({ content: 'İptal işlemi iptal edildi.', components: [] });
   }
 
   private async handleDeleteAllProductsCancel(interaction: ButtonInteraction): Promise<void> {
