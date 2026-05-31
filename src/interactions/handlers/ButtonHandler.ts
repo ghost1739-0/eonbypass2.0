@@ -149,6 +149,7 @@ export class ButtonHandler {
     modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
 
     try {
+      console.log('[ButtonHandler] showAdjustModal opening modal for key=', keyStr);
       await interaction.showModal(modal);
     } catch (err) {
       console.error('[ButtonHandler] showAdjustModal error', err);

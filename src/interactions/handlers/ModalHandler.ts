@@ -123,6 +123,8 @@ export class ModalHandler {
       const keyStr = parts[parts.length - 1];
       const deltaRaw = interaction.fields.getTextInputValue('months_delta');
 
+      console.log('[ModalHandler] handleAdjustModal called for key=', keyStr, 'deltaRaw=', deltaRaw);
+
       const delta = parseInt(deltaRaw, 10);
       if (Number.isNaN(delta)) {
         await interaction.reply({ content: 'Geçersiz sayı girdiniz.', ephemeral: true });
@@ -130,6 +132,7 @@ export class ModalHandler {
       }
 
       const key = await KeyModel.findOne({ key: keyStr }).exec();
+      console.log('[ModalHandler] DB findOne result for key=', keyStr, ' =>', !!key);
       if (!key) {
         await interaction.reply({ content: 'Anahtar bulunamadı.', ephemeral: true });
         return;
@@ -151,6 +154,7 @@ export class ModalHandler {
       }
 
       await key.save();
+      console.log('[ModalHandler] key saved, new durationMonths=', key.durationMonths, 'expiresAt=', key.expiresAt);
 
       await interaction.reply({ content: `Anahtar süresi güncellendi. Yeni ay: ${key.durationMonths}`, ephemeral: true });
     } catch (err) {
